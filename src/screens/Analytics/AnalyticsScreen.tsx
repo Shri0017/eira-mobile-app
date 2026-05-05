@@ -605,6 +605,8 @@ const AnalyticsScreen: React.FC = () => {
                             dashWidth={3}
                             yAxisTextStyle={styles.axisText}
                             xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
+                            xAxisTextNumberOfLines={2}
+                            xAxisLabelsHeight={35}
                             formatYLabel={formatEnergyYAxisLabel}
                             pointerConfig={scrollEnabled ? {
                               pointerStripHeight: 300,
@@ -713,7 +715,7 @@ const AnalyticsScreen: React.FC = () => {
                      if (d.getMinutes() !== 0 || d.getHours() % 2 !== 0) return '';
                   }
                   if (activeTimeFilter === 'Week') {
-                    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
+                    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}\n${String(d.getHours()).padStart(2, '0')}:00`;
                   }
                   return `${String(d.getHours()).padStart(2, '0')}:00`;
                 }
@@ -842,6 +844,8 @@ const AnalyticsScreen: React.FC = () => {
                             dashWidth={3}
                             yAxisTextStyle={styles.axisText}
                             xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
+                            xAxisTextNumberOfLines={2}
+                            xAxisLabelsHeight={35}
                             formatYLabel={formatEnergyYAxisLabel}
                           />
                         )}
@@ -1057,6 +1061,7 @@ const AnalyticsScreen: React.FC = () => {
               });
               const yMax    = roundUpMax(Math.max(...energyData.map((d: any) => d.value), 0));
               const yMaxIrr = roundUpMax(Math.max(...irradiationData.map((d: any) => d.value), 0));
+              const yMinIrr = roundUpMax(Math.min(...irradiationData.map((d: any) => d.value), 0));
               const dynWidth = Math.max((energyData.length - 1) * chartSpacing + 40, Dimensions.get('window').width - 55);
 
               return (
@@ -1156,14 +1161,21 @@ const AnalyticsScreen: React.FC = () => {
                             lineConfig={{
                               color: '#8979FF',
                               thickness: 2,
-                              hideDataPoints: true,
+                              hideDataPoints: false,
+                              dataPointsColor: '#8979FF',
                             }}
                             height={300}
-                            width={Math.max(raw.length * chartBarWidth + (raw.length - 1) * chartSpacing + 40, Dimensions.get('window').width - 55)}
+                            width={Math.max(raw.length * chartBarWidth + (raw.length - 1) * chartSpacing + 80, Dimensions.get('window').width - 55)}
                             barWidth={chartBarWidth}
                             spacing={2}
                             barBorderRadius={2}
-                            yAxisThickness={0}
+                            yAxisThickness={1}
+                            secondaryYAxis={{
+                              noOfSections: 3,
+                              maxValue: yMaxIrr,
+                              yAxisColor: '#8979FF',
+                              yAxisTextStyle: {...styles.axisText, color: '#8979FF'},
+                            }}
                             xAxisThickness={1}
                             xAxisColor="#E5E7EB"
                             rulesColor="#E5E7EB"
@@ -1178,6 +1190,15 @@ const AnalyticsScreen: React.FC = () => {
                           />
                         )}
                       </GHScrollView>
+                      {activeChartType === 'bar' && (
+                        <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: 40, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
+                          {Array.from({length: 6}).map((_, i) => (
+                            <Text key={i} style={[styles.axisText, {color: '#8979FF', textAlign: 'center', transform: [{translateY: i === 0 ? -6 : i === 5 ? 6 : 0}]}]}>
+                              {(yMaxIrr - i * (yMaxIrr / 5)).toFixed(2)}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   </GestureDetector>
                   <View style={styles.metrics}>
@@ -1321,14 +1342,21 @@ const AnalyticsScreen: React.FC = () => {
                             lineConfig={{
                               color: '#8979FF',
                               thickness: 2,
-                              hideDataPoints: true,
+                              hideDataPoints: false,
+                              dataPointsColor: '#8979FF',
                             }}
                           height={300}
-                          width={Math.max(sampled.length * chartBarWidth + (sampled.length - 1) * chartSpacing + 40, Dimensions.get('window').width - 55)}
+                          width={Math.max(sampled.length * chartBarWidth + (sampled.length - 1) * chartSpacing + 80, Dimensions.get('window').width - 55)}
                           barWidth={chartBarWidth}
                           spacing={2}
                           barBorderRadius={2}
                           yAxisThickness={1}
+                          secondaryYAxis={{
+                            noOfSections: 5,
+                            maxValue: yMaxIrr,
+                            yAxisColor: '#8979FF',
+                            yAxisTextStyle: {...styles.axisText, color: '#8979FF'},
+                          }}
                           xAxisThickness={1}
                           xAxisColor="#E5E7EB"
                           rulesColor="#E5E7EB"
@@ -1343,6 +1371,15 @@ const AnalyticsScreen: React.FC = () => {
                         />
                       )}
                     </GHScrollView>
+                    {activeChartType === 'bar' && (
+                      <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: 40, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
+                        {Array.from({length: 6}).map((_, i) => (
+                          <Text key={i} style={[styles.axisText, {color: '#8979FF', textAlign: 'center', transform: [{translateY: i === 0 ? -6 : i === 5 ? 6 : 0}]}]}>
+                            {(yMaxIrr - i * (yMaxIrr / 5)).toFixed(2)}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 </GestureDetector>
                 <View style={styles.metrics}>
