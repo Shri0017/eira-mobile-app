@@ -912,7 +912,7 @@ const AnalyticsScreen: React.FC = () => {
                 (_, i) => (i * secStep).toFixed(2),
               );
               const leftYWidth = useTimeStampAxis ? 44 : 35;
-              const rightYWidth = 40;
+              const rightYWidth = 30;
               const chartWidth = cardInnerWidth - leftYWidth - rightYWidth;
               const dynWidth = activeChartType === 'line'
                 ? Math.max((energyData.length - 1) * chartSpacing + leftYWidth + rightYWidth, cardInnerWidth)
@@ -987,47 +987,54 @@ const AnalyticsScreen: React.FC = () => {
                           />
                         ) : (
                           <BarChart
-                            data={(() => {
+                            data={raw.map((d: any, i: number) => {
+                              const energyVal = Math.max(0, d.todayEnergy ?? 0);
+                              const syVal     = Math.max(0, d.specificYield ?? 0);
+                              const lbl = xLabels[i];
+                              const isSelected = selectedBarIndex === i;
+                              return {
+                                value: energyVal,
+                                frontColor: '#4b8aff',
+                                label: lbl,
+                                onPress: () => setSelectedBarIndex(isSelected ? null : i),
+                                topLabelComponent: () => isSelected ? (
+                                  <View style={styles.barTooltip} pointerEvents="none">
+                                    <Text style={styles.barTooltipValue}>Energy: {formatEnergyYAxisLabel(String(energyVal))}</Text>
+                                    <Text style={styles.barTooltipValue}>Yield: {syVal.toFixed(2)} kWh/kWp</Text>
+                                    <View style={styles.barTooltipArrow} />
+                                  </View>
+                                ) : (
+                                  <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(energyVal))}</Text>
+                                ),
+                              };
+                            })}
+                            showLine
+                            lineData={(() => {
                               const syFactor = secMaxRounded > 0 ? primary.maxValue / secMaxRounded : 1;
-                              return raw.flatMap((d: any, i: number) => {
-                                const energyVal = Math.max(0, d.todayEnergy  ?? 0);
-                                const syVal     = Math.max(0, d.specificYield ?? 0);
-                                const lbl = xLabels[i];
-                                const isSelected = selectedBarIndex === i;
-                                return [
-                                  {
-                                    value: energyVal,
-                                    frontColor: '#4b8aff',
-                                    spacing: 2,
-                                    label: lbl,
-                                    onPress: () => setSelectedBarIndex(isSelected ? null : i),
-                                    topLabelComponent: () => isSelected ? (
-                                      <View style={styles.barTooltip} pointerEvents="none">
-                                        <Text style={styles.barTooltipValue}>Energy: {formatEnergyYAxisLabel(String(energyVal))}</Text>
-                                        <Text style={styles.barTooltipValue}>Yield: {syVal.toFixed(2)}</Text>
-                                        <View style={styles.barTooltipArrow} />
-                                      </View>
-                                    ) : (
-                                      <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(energyVal))}</Text>
-                                    ),
-                                  },
-                                  {
-                                    value: syVal * syFactor,
-                                    frontColor: '#8979FF',
-                                    spacing: 14,
-                                    topLabelComponent: () => isSelected ? null : (
-                                      <Text style={styles.barValueLabel}>{syVal.toFixed(2)}</Text>
-                                    ),
-                                  },
-                                ];
-                              });
+                              return raw.map((d: any) => ({
+                                value: Math.max(0, d.specificYield ?? 0) * syFactor,
+                                dataPointText: '',
+                              }));
                             })()}
+                            lineConfig={{
+                              color: '#8979FF',
+                              thickness: 2,
+                              hideDataPoints: false,
+                              dataPointsColor: '#8979FF',
+                            }}
                             height={300}
-                            width={Math.max(raw.length * 50 + 40, chartWidth + rightYWidth)}
+                            width={Math.max(raw.length * chartBarWidth + (raw.length - 1) * chartSpacing + 80, Dimensions.get('window').width - 55)}
                             barWidth={chartBarWidth}
-                            spacing={2}
+                            spacing={chartSpacing}
                             barBorderRadius={2}
                             yAxisThickness={1}
+                            yAxisLabelWidth={leftYWidth}
+                            secondaryYAxis={{
+                              noOfSections: primary.noOfSections,
+                              maxValue: secMaxRounded,
+                              yAxisColor: '#8979FF',
+                              yAxisTextStyle: {...styles.axisText, color: '#8979FF'},
+                            }}
                             xAxisThickness={1}
                             xAxisColor="#E5E7EB"
                             rulesColor="#E5E7EB"
@@ -1036,12 +1043,21 @@ const AnalyticsScreen: React.FC = () => {
                             dashWidth={3}
                             noOfSections={primary.noOfSections}
                             maxValue={primary.maxValue}
-                            yAxisTextStyle={styles.axisText}
-                            xAxisLabelTextStyle={styles.xLabelWide}
+                            yAxisTextStyle={{...styles.axisText, color: '#4b8aff'}}
                             formatYLabel={formatEnergyYAxisLabel}
+                            xAxisLabelTextStyle={styles.xLabelWide}
                           />
                         )}
                       </GHScrollView>
+                      {activeChartType === 'bar' && (
+                        <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: rightYWidth, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
+                          {Array.from({length: primary.noOfSections + 1}).map((_, i) => (
+                            <Text key={i} style={[styles.axisText, {color: '#8979FF', textAlign: 'center', transform: [{translateY: i === 0 ? -6 : i === primary.noOfSections ? 6 : 0}]}]}>
+                              {(secMaxRounded - i * secStep).toFixed(2)}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   </GestureDetector>
                   <View style={styles.metrics}>
@@ -1672,7 +1688,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
-    minWidth: 110,
+    minWidth: 120,
     height: 35,
     flexShrink: 0,
     zIndex: 1000,
