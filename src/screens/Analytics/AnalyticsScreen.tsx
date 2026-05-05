@@ -601,7 +601,7 @@ const AnalyticsScreen: React.FC = () => {
                 <>
                   <GestureDetector gesture={pinchGesture}>
                     <View>
-                      <GHScrollView horizontal scrollEnabled={scrollEnabled} showsHorizontalScrollIndicator={false}>
+                      <GHScrollView horizontal scrollEnabled={scrollEnabled} showsHorizontalScrollIndicator={false} style={activeChartType === 'bar' ? {marginRight: leftYWidth} : undefined}>
                         {activeChartType === 'line' ? (
                           <LineChart
                             data={dataSet[0]?.data ?? []}
@@ -657,22 +657,64 @@ const AnalyticsScreen: React.FC = () => {
                           />
                         ) : (
                           <BarChart
-                            stackData={dgBarData}
+                            data={allTimestamps.map((ts: string, i: number) => {
+                              const solarVal = Math.max(0, solarMap[ts] ?? 0);
+                              const gridVal  = Math.max(0, gridMap[ts]  ?? 0);
+                              const dgVal    = Math.max(0, dgMap[ts]    ?? 0);
+                              const isSelected = selectedBarIndex === i;
+                              return {
+                                value: solarVal,
+                                frontColor: 'rgba(255,165,0,0.85)',
+                                label: xLabels[i],
+                                onPress: () => setSelectedBarIndex(isSelected ? null : i),
+                                topLabelComponent: () => isSelected ? (
+                                  <View style={styles.barTooltip} pointerEvents="none">
+                                    <Text style={styles.barTooltipValue}>Solar: {formatEnergyYAxisLabel(String(solarVal))}</Text>
+                                    <Text style={styles.barTooltipValue}>Grid: {formatEnergyYAxisLabel(String(gridVal))}</Text>
+                                    <Text style={styles.barTooltipValue}>DG: {formatEnergyYAxisLabel(String(dgVal))}</Text>
+                                    <View style={styles.barTooltipArrow} />
+                                  </View>
+                                ) : (
+                                  <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(solarVal))}</Text>
+                                ),
+                              };
+                            })}
+                            showLine
+                            lineData={allTimestamps.map((ts: string) => ({
+                              value: Math.max(0, gridMap[ts] ?? 0),
+                              dataPointText: '',
+                            }))}
+                            lineData2={allTimestamps.map((ts: string) => ({
+                              value: Math.max(0, dgMap[ts] ?? 0),
+                              dataPointText: '',
+                            }))}
+                            lineConfig={{
+                              color: 'rgba(100,149,237,0.85)',
+                              thickness: 2,
+                              hideDataPoints: false,
+                              dataPointsColor: 'rgba(100,149,237,0.85)',
+                            }}
+                            lineConfig2={{
+                              color: 'rgba(192,192,192,0.9)',
+                              thickness: 2,
+                              hideDataPoints: false,
+                              dataPointsColor: 'rgba(192,192,192,0.9)',
+                            }}
                             height={300}
                             width={dynWidth}
-                            spacing={chartSpacing}
-                            yAxisLabelWidth={leftYWidth}
-                            noOfSections={dgStackScale.noOfSections}
-                            maxValue={dgStackScale.maxValue}
                             barWidth={chartBarWidth}
+                            spacing={chartSpacing}
                             barBorderRadius={2}
                             yAxisThickness={1}
+                            yAxisLabelWidth={leftYWidth}
                             xAxisThickness={1}
                             xAxisColor="#E5E7EB"
                             rulesColor="#E5E7EB"
                             rulesType="dashed"
                             dashGap={4}
                             dashWidth={3}
+                            noOfSections={primary.noOfSections}
+                            maxValue={primary.maxValue}
                             yAxisTextStyle={styles.axisText}
                             xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
                             formatYLabel={formatEnergyYAxisLabel}
