@@ -180,7 +180,7 @@ const AnalyticsScreen: React.FC = () => {
         newSpacing = (screenWidth - 40) / Math.max(1, points - 1);
       } else {
         const totalSpace = screenWidth - 40;
-        const chunk = totalSpace / Math.max(1, points);
+        const chunk = totalSpace / Math.min(6, points);
         newBarWidth = chunk * 0.7;
         newSpacing = chunk * 0.3;
       }
@@ -245,6 +245,9 @@ const AnalyticsScreen: React.FC = () => {
 
   const handleSelectChart = (chart: DropdownOption) => {
     if (chart.value === selectedChart) return;
+    if (chart.value === 'specific_yield') {
+      setActiveChartType('bar');
+    }
     setChartData([]);          // clear stale data from the previous analytics type
     setSelectedChart(chart.value);
   };
@@ -458,7 +461,7 @@ const AnalyticsScreen: React.FC = () => {
               />
             </View>
             <TabNavigator
-              tabs={['Daily', 'Week'].includes(activeTimeFilter) ? [
+              tabs={['Daily', 'Week'].includes(activeTimeFilter) && selectedChart != 'specific_yield' ? [
                 {key: 'line', title: 'Line'},
                 {key: 'bar',  title: 'Bar'},
               ] : [
@@ -1438,7 +1441,7 @@ const AnalyticsScreen: React.FC = () => {
             onTabChange={(key) => {
               setLoading(true);
               setActiveTimeFilter(key as typeof TIME_FILTERS[number]);
-              setActiveChartType(key === 'Daily' ? 'line' : 'bar');
+              setActiveChartType(key === 'Daily' && selectedChart != 'specific_yield' ? 'line' : 'bar');
               setFromDate(null);
               setToDate(null);
             }}
