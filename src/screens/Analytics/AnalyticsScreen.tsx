@@ -922,7 +922,7 @@ const AnalyticsScreen: React.FC = () => {
                 <>
                   <GestureDetector gesture={pinchGesture}>
                     <View>
-                      <GHScrollView horizontal scrollEnabled={scrollEnabled} showsHorizontalScrollIndicator={false}>
+                      <GHScrollView horizontal scrollEnabled={scrollEnabled} showsHorizontalScrollIndicator={false} style={activeChartType === 'bar' ? {marginRight: rightYWidth} : undefined}>
                         {activeChartType === 'line' ? (
                           <LineChart
                             data={energyData}
@@ -1029,12 +1029,6 @@ const AnalyticsScreen: React.FC = () => {
                             barBorderRadius={2}
                             yAxisThickness={1}
                             yAxisLabelWidth={leftYWidth}
-                            secondaryYAxis={{
-                              noOfSections: primary.noOfSections,
-                              maxValue: secMaxRounded,
-                              yAxisColor: '#8979FF',
-                              yAxisTextStyle: {...styles.axisText, color: '#8979FF'},
-                            }}
                             xAxisThickness={1}
                             xAxisColor="#E5E7EB"
                             rulesColor="#E5E7EB"
@@ -1050,9 +1044,9 @@ const AnalyticsScreen: React.FC = () => {
                         )}
                       </GHScrollView>
                       {activeChartType === 'bar' && (
-                        <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: rightYWidth, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
+                        <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: rightYWidth, backgroundColor: 'white', justifyContent: 'space-between', paddingVertical: 2, borderLeftWidth: 1, borderLeftColor: '#8979FF' }}>
                           {Array.from({length: primary.noOfSections + 1}).map((_, i) => (
-                            <Text key={i} style={[styles.axisText, {color: '#8979FF', textAlign: 'center', transform: [{translateY: i === 0 ? -6 : i === primary.noOfSections ? 6 : 0}]}]}>
+                            <Text key={i} style={[styles.axisText, {color: '#8979FF', textAlign: 'center'}]}>
                               {(secMaxRounded - i * secStep).toFixed(2)}
                             </Text>
                           ))}
