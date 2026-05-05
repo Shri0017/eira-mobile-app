@@ -120,6 +120,9 @@ const AnalyticsScreen: React.FC = () => {
   const [chartBarWidth,    setChartBarWidth]     = useState(16);
   const [scrollEnabled,    setScrollEnabled]     = useState(true);
   const [selectedBarIndex, setSelectedBarIndex]  = useState<number | null>(null);
+  const [isPinchingState,  setIsPinchingState]   = useState(false);
+  const isPinching = useSharedValue(false);
+  const [pointerIndex,     setPointerIndex]      = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const fetchIdRef = React.useRef(0);
 
@@ -202,19 +205,30 @@ const AnalyticsScreen: React.FC = () => {
   };
 
   const pinchGesture = Gesture.Pinch()
-    .onBegin(() => { runOnJS(setScrollEnabled)(false); })
+    .onBegin((e) => {
+      if (e.numberOfPointers < 2) return;
+      isPinching.value = true;
+      runOnJS(setIsPinchingState)(true);
+      runOnJS(setScrollEnabled)(false);
+    })
     .onStart(() => {
+      if (!isPinching.value) return;
       pinchStartSpacing.value  = svSpacing.value;
       pinchStartBarWidth.value = svBarWidth.value;
     })
     .onUpdate(e => {
+      if (!isPinching.value) return;
       const s = clampS(pinchStartSpacing.value  * e.scale);
       const w = clampW(pinchStartBarWidth.value * e.scale);
       svSpacing.value  = s; svBarWidth.value = w;
       runOnJS(setChartSpacing)(Math.round(s));
       runOnJS(setChartBarWidth)(Math.round(w));
     })
-    .onFinalize(() => { runOnJS(setScrollEnabled)(true); });
+    .onFinalize(() => {
+      isPinching.value = false;
+      runOnJS(setIsPinchingState)(false);
+      runOnJS(setScrollEnabled)(true);
+    });
 
   const zoomIn = () => {
     const s = clampS(svSpacing.value  + 4);
@@ -608,7 +622,7 @@ const AnalyticsScreen: React.FC = () => {
                             xAxisTextNumberOfLines={2}
                             xAxisLabelsHeight={35}
                             formatYLabel={formatEnergyYAxisLabel}
-                            pointerConfig={scrollEnabled ? {
+                            pointerConfig={!isPinchingState ? {
                               pointerStripHeight: 300,
                               pointerStripColor: '#94A3B8',
                               pointerStripWidth: 1,
@@ -796,7 +810,7 @@ const AnalyticsScreen: React.FC = () => {
                             xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
                             xAxisLabelTexts={xLabels}
                             formatYLabel={formatEnergyYAxisLabel}
-                            pointerConfig={scrollEnabled ? {
+                            pointerConfig={!isPinchingState ? {
                               pointerStripHeight: 300,
                               pointerStripColor: '#94A3B8',
                               pointerStripWidth: 1,
@@ -946,7 +960,7 @@ const AnalyticsScreen: React.FC = () => {
                             formatYLabel={formatEnergyYAxisLabel}
                             xAxisLabelTextStyle={styles.xLabelWide}
                             xAxisLabelTexts={xLabels}
-                            pointerConfig={scrollEnabled ? {
+                            pointerConfig={!isPinchingState ? {
                               pointerStripHeight: 300,
                               pointerStripColor: '#94A3B8',
                               pointerStripWidth: 1,
@@ -1100,7 +1114,7 @@ const AnalyticsScreen: React.FC = () => {
                             noOfSections={5}
                             maxValue={yMax}
                             xAxisLabelTexts={xLabels}
-                            pointerConfig={scrollEnabled ? {
+                            pointerConfig={!isPinchingState ? {
                               pointerStripHeight: 300,
                               pointerStripColor: '#94A3B8',
                               pointerStripWidth: 1,
@@ -1282,7 +1296,7 @@ const AnalyticsScreen: React.FC = () => {
                           noOfSections={5}
                           maxValue={yMax}
                           xAxisLabelTexts={xLabels}
-                          pointerConfig={scrollEnabled ? {
+                          pointerConfig={!isPinchingState ? {
                             pointerStripHeight: 300,
                             pointerStripColor: '#94A3B8',
                             pointerStripWidth: 1,
@@ -1292,7 +1306,9 @@ const AnalyticsScreen: React.FC = () => {
                             pointerLabelHeight: 64,
                             activatePointersOnLongPress: false,
                             autoAdjustPointerLabelPosition: true,
-                            pointerLabelComponent: (items: any[]) => (
+                            pointerLabelComponent: (items: any[]) => {
+                              const irrVal = irradiationData[pointerIndex]?.value ?? 0;
+                              return (
                               <View style={styles.lineTooltip} pointerEvents="none">
                                 <View style={styles.lineTooltipRow}>
                                   <View style={[styles.lineTooltipDot, {backgroundColor: '#FF928A'}]} />
@@ -1300,11 +1316,14 @@ const AnalyticsScreen: React.FC = () => {
                                 </View>
                                 <View style={styles.lineTooltipRow}>
                                   <View style={[styles.lineTooltipDot, {backgroundColor: '#8979FF'}]} />
-                                  <Text style={styles.lineTooltipText}>Irradiation: {(items[1]?.value ?? 0).toFixed(2)}</Text>
+                                  <Text style={styles.lineTooltipText}>Irradiation: {irrVal.toFixed(2)}</Text>
                                 </View>
-                              </View>
-                            ),
+                              </View>);
+                            },
                           } : undefined}
+                          getPointerProps={({pointerIndex: idx}: {pointerIndex: number}) => {
+                            setPointerIndex(idx);
+                          }}
                         />
                       ) : (
                           <BarChart
