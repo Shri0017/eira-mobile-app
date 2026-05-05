@@ -1,0 +1,16 @@
+import {API_CORE_URL, API_REPORT_URL, API_COLLECTION_URL, API_TIMEOUT, API_BASE_URL, API_PVDGGRID_URL} from '@env';
+
+export const API_CONFIG = {
+  API_CORE_URL: API_CORE_URL || '',
+  API_REPORT_URL: API_REPORT_URL || '',
+  API_COLLECTION_URL: API_COLLECTION_URL || '',
+  API_BASE_URL: API_BASE_URL || '',
+  API_PVDGGRID_URL: API_PVDGGRID_URL || '',
+  TIMEOUT: parseInt(API_TIMEOUT, 10) || 120000,
+};
+
+export const STORAGE_KEYS = {
+  ACCESS_TOKEN: '@eira_access_token',
+  REFRESH_TOKEN: '@eira_refresh_token',
+  USER_DATA: '@eira_user_data',
+};
