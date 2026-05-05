@@ -159,11 +159,37 @@ const AnalyticsScreen: React.FC = () => {
 
   // Reset zoom & selection when chart type/filter changes
   useEffect(() => {
-    svSpacing.value  = 40; svBarWidth.value = 16;
-    setChartSpacing(40); setChartBarWidth(16);
-    setScrollEnabled(true); setSelectedBarIndex(null);
+    let points = chartData?.length || 1;
+    const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week';
     
-  }, [selectedChart, activeChartType, activeTimeFilter]);
+    if (selectedChart === 'string_current' && isDailyOrWeekly) {
+      points = Math.ceil(points / 6);
+    } else if (selectedChart === ANALYTICS_TYPES[0].value && isDailyOrWeekly && activeChartType === 'line') {
+      points = Math.ceil(points / 6);
+    }
+    
+    const screenWidth = Dimensions.get('window').width - 55;
+    let newSpacing = 40;
+    let newBarWidth = 16;
+
+    if (points > 0) {
+      if (activeChartType === 'line') {
+        newSpacing = (screenWidth - 40) / Math.max(1, points - 1);
+      } else {
+        const totalSpace = screenWidth - 40;
+        const chunk = totalSpace / Math.max(1, points);
+        newBarWidth = chunk * 0.7;
+        newSpacing = chunk * 0.3;
+      }
+    }
+
+    newSpacing = Math.max(2, Math.min(newSpacing, 120));
+    newBarWidth = Math.max(2, Math.min(newBarWidth, 80));
+
+    svSpacing.value  = newSpacing; svBarWidth.value = newBarWidth;
+    setChartSpacing(newSpacing); setChartBarWidth(newBarWidth);
+    setScrollEnabled(true); setSelectedBarIndex(null);
+  }, [selectedChart, activeChartType, activeTimeFilter, chartData]);
 
   // Clamp helpers — worklets so they run on UI thread inside pinch handler
   const clampS = (s: number): number => {
@@ -460,17 +486,6 @@ const AnalyticsScreen: React.FC = () => {
 
               const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week';
 
-              const fmtLabel = (ts: string): string => {
-                if (isDailyOrWeekly) {
-                  const d = new Date(ts.replace(' ', 'T'));
-                  if (d.getMinutes() === 0 && d.getHours() % 2 === 0) {
-                    return `${d.getHours().toString().padStart(2, '0')}:00`;
-                  }
-                  return '';
-                }
-                return ts;
-              };
-
               const allTimestamps = Array.from(
                 new Set([
                   ...gridArr.map((d: any) => d.timeStamp),
@@ -478,6 +493,23 @@ const AnalyticsScreen: React.FC = () => {
                   ...dgArr.map((d: any) => d.timeStamp),
                 ]),
               ).sort();
+
+              const labelStep = Math.max(1, Math.floor(allTimestamps.length / 5));
+              const fmtLabel = (ts: string, i: number): string => {
+                if (isDailyOrWeekly) {
+                  const d = new Date(ts.replace(' ', 'T'));
+                  if (activeChartType === 'line') {
+                    if (i % labelStep !== 0) return '';
+                  } else {
+                    if (d.getMinutes() !== 0 || d.getHours() % 2 !== 0) return '';
+                  }
+                  if (activeTimeFilter === 'Week') {
+                    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
+                  }
+                  return `${String(d.getHours()).padStart(2, '0')}:00`;
+                }
+                return ts;
+              };
 
               const toMap = (arr: any[]) =>
                 Object.fromEntries(arr.map((d: any) => [d.timeStamp, d.todayEnergy ?? 0]));
@@ -510,7 +542,9 @@ const AnalyticsScreen: React.FC = () => {
               const leftYWidth = 44;
               const n = allTimestamps.length;
               const chartWidth = cardInnerWidth - leftYWidth;
-              const dynWidth = Math.max((n - 1) * chartSpacing + 40, chartWidth);
+              const dynWidth = activeChartType === 'line' 
+                ? Math.max((n - 1) * chartSpacing + 40, chartWidth)
+                : Math.max(n * chartBarWidth + (n - 1) * chartSpacing + 40, chartWidth);
 
               const dataSet = [
                 {data: gridData,  color: 'rgba(100,149,237,0.85)', hideDataPoints: true, thickness: 2},
@@ -665,32 +699,33 @@ const AnalyticsScreen: React.FC = () => {
               const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week';
               const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-              const scFmtLabel = (ts: string): string => {
-                const d = new Date(ts.replace(' ', 'T'));
-                if (isDailyOrWeekly) {
-                  if (d.getMinutes() === 0 && d.getHours() % 2 === 0) {
-                    return `${d.getHours().toString().padStart(2, '0')}:00`;
-                  }
-                  return '';
-                }
-                if (activeTimeFilter === 'Month') {
-                  const day = d.getDate();
-                  if (day === 1 || day === 11 || day === 21) {
-                    return `${MONTHS_SHORT[d.getMonth()]} ${String(day).padStart(2, '0')}`;
-                  }
-                  return '';
-                }
-                if (d.getMonth() % 3 === 0 && d.getDate() === 1 && d.getHours() === 0 && d.getMinutes() === 0) {
-                  return MONTHS_SHORT[d.getMonth()];
-                }
-                return '';
-              };
-
               const sampled = isDailyOrWeekly
                 ? raw.filter((_: any, i: number) => i % 6 === 0)
                 : raw;
 
-              const xLabels = sampled.map((d: any) => scFmtLabel(d.TimeStamp ?? ''));
+              const labelStep = Math.max(1, Math.floor(sampled.length / 5));
+              const scFmtLabel = (ts: string, i: number): string => {
+                const d = new Date(ts.replace(' ', 'T'));
+                if (isDailyOrWeekly) {
+                  if (activeChartType === 'line') {
+                     if (i % labelStep !== 0) return '';
+                  } else {
+                     if (d.getMinutes() !== 0 || d.getHours() % 2 !== 0) return '';
+                  }
+                  if (activeTimeFilter === 'Week') {
+                    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
+                  }
+                  return `${String(d.getHours()).padStart(2, '0')}:00`;
+                }
+                if (activeChartType === 'line' && i % Math.max(1, Math.floor(sampled.length / 6)) !== 0) return '';
+                if (activeTimeFilter === 'Month') {
+                  const day = d.getDate();
+                  return `${MONTHS_SHORT[d.getMonth()]} ${String(day).padStart(2, '0')}`;
+                }
+                return MONTHS_SHORT[d.getMonth()] || '';
+              };
+
+              const xLabels = sampled.map((d: any, i: number) => scFmtLabel(d.TimeStamp ?? '', i));
 
               const scDataSet = SC_KEYS.map((scKey, ki) => ({
                 data: sampled.map((d: any) => ({
@@ -708,7 +743,9 @@ const AnalyticsScreen: React.FC = () => {
 
               const leftYWidth = 44;
               const scChartWidth = cardInnerWidth - leftYWidth;
-              const dynWidth = Math.max((sampled.length - 1) * chartSpacing + 40, scChartWidth);
+              const dynWidth = activeChartType === 'line'
+                ? Math.max((sampled.length - 1) * chartSpacing + 40, scChartWidth)
+                : Math.max(sampled.length * chartBarWidth + (sampled.length - 1) * chartSpacing + 40, scChartWidth);
 
               const scStackData = sampled.map((d: any, i: number) => {
                 const total = SC_KEYS.reduce((sum: number, k: string) => sum + Math.max(0, d[k] ?? 0), 0);
@@ -837,11 +874,15 @@ const AnalyticsScreen: React.FC = () => {
               }));
               const useTimeStampAxis =
                 activeTimeFilter === 'Month' || activeTimeFilter === 'Year';
+              const labelStep = Math.max(1, Math.floor(raw.length / 5));
               const xLabels = raw.map((d: any, i: number) => {
                 if (useTimeStampAxis) {
                   const ts = d.timeStamp ?? d.timestamp ?? d.TimeStamp;
-                  return ts ? String(ts) : '';
+                  if (!ts) return '';
+                  if (activeChartType === 'line' && i % labelStep !== 0) return '';
+                  return String(ts);
                 }
+                if (activeChartType === 'line' && i % labelStep !== 0) return '';
                 return `INV ${String(i + 1).padStart(2, '0')}`;
               });
               const primary = niceScale(Math.max(...energyData.map((d: any) => d.value), 0));
@@ -855,7 +896,9 @@ const AnalyticsScreen: React.FC = () => {
               const leftYWidth = useTimeStampAxis ? 44 : 35;
               const rightYWidth = 40;
               const chartWidth = cardInnerWidth - leftYWidth - rightYWidth;
-              const dynWidth = Math.max((energyData.length - 1) * chartSpacing + leftYWidth + rightYWidth, cardInnerWidth);
+              const dynWidth = activeChartType === 'line'
+                ? Math.max((energyData.length - 1) * chartSpacing + leftYWidth + rightYWidth, cardInnerWidth)
+                : Math.max(energyData.length * chartBarWidth + (energyData.length - 1) * chartSpacing + leftYWidth + rightYWidth, cardInnerWidth);
 
               return (
                 <>
@@ -1005,9 +1048,12 @@ const AnalyticsScreen: React.FC = () => {
               const irradiationData = raw.map((d: any) => ({
                 value: Math.max(0, d.irradiation ?? 0),
               }));
-              const xLabels = raw.map((d: any) => {
+              const labelStep = Math.max(1, Math.floor(raw.length / 5));
+              const xLabels = raw.map((d: any, i: number) => {
                 const ts = d.timeStamp ?? d.timestamp ?? d.TimeStamp;
-                return ts ? String(ts) : '';
+                if (!ts) return '';
+                if (activeChartType === 'line' && i % labelStep !== 0) return '';
+                return String(ts);
               });
               const yMax    = roundUpMax(Math.max(...energyData.map((d: any) => d.value), 0));
               const yMaxIrr = roundUpMax(Math.max(...irradiationData.map((d: any) => d.value), 0));
@@ -1113,7 +1159,7 @@ const AnalyticsScreen: React.FC = () => {
                               hideDataPoints: true,
                             }}
                             height={300}
-                            width={Math.max(raw.length * 50 + 40, Dimensions.get('window').width - 55)}
+                            width={Math.max(raw.length * chartBarWidth + (raw.length - 1) * chartSpacing + 40, Dimensions.get('window').width - 55)}
                             barWidth={chartBarWidth}
                             spacing={2}
                             barBorderRadius={2}
@@ -1157,15 +1203,19 @@ const AnalyticsScreen: React.FC = () => {
             const irradiationData = sampled.map((d: any) => ({
               value: Math.max(0, d.irradiation ?? 0),
             }));
-            const xLabels = sampled.map((d: any) => {
+            const labelStep = Math.max(1, Math.floor(sampled.length / 5));
+            const xLabels = sampled.map((d: any, i: number) => {
               const ts = d.timeStamp ?? d.timestamp ?? d.TimeStamp;
               if (!ts) return '';
               if (activeChartType === 'bar') {
                 return String(ts);
               }
-              const date = new Date(ts.replace(' ', 'T'));
-              if (date.getMinutes() === 0 && date.getHours() % 2 === 0) {
-                return `${date.getHours().toString().padStart(2, '0')}:00`;
+              if (i % labelStep === 0) {
+                const date = new Date(ts.replace(' ', 'T'));
+                if (activeTimeFilter === 'Week') {
+                  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}\n${String(date.getHours()).padStart(2, '0')}:00`;
+                }
+                return `${String(date.getHours()).padStart(2, '0')}:00`;
               }
               return '';
             });
@@ -1206,6 +1256,8 @@ const AnalyticsScreen: React.FC = () => {
                           curved
                           yAxisTextStyle={{...styles.axisText, color: '#FF928A'}}
                           xAxisLabelTextStyle={styles.xLabel}
+                          xAxisTextNumberOfLines={2}
+                          xAxisLabelsHeight={35}
                           noOfSections={5}
                           maxValue={yMax}
                           xAxisLabelTexts={xLabels}
@@ -1272,7 +1324,7 @@ const AnalyticsScreen: React.FC = () => {
                               hideDataPoints: true,
                             }}
                           height={300}
-                          width={Math.max(sampled.length * 50 + 40, Dimensions.get('window').width - 55)}
+                          width={Math.max(sampled.length * chartBarWidth + (sampled.length - 1) * chartSpacing + 40, Dimensions.get('window').width - 55)}
                           barWidth={chartBarWidth}
                           spacing={2}
                           barBorderRadius={2}
@@ -1318,6 +1370,7 @@ const AnalyticsScreen: React.FC = () => {
             ]}
             activeTab={activeTimeFilter}
             onTabChange={(key) => {
+              setLoading(true);
               setActiveTimeFilter(key as typeof TIME_FILTERS[number]);
               setActiveChartType(key === 'Daily' ? 'line' : 'bar');
               setFromDate(null);
