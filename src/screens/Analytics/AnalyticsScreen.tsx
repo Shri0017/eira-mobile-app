@@ -510,7 +510,7 @@ const AnalyticsScreen: React.FC = () => {
                   ...solarArr.map((d: any) => d.timeStamp),
                   ...dgArr.map((d: any) => d.timeStamp),
                 ]),
-              ).sort();
+              );
 
               const labelStep = Math.max(1, Math.floor(allTimestamps.length / 5));
               const fmtLabel = (ts: string, i: number): string => {
@@ -571,7 +571,6 @@ const AnalyticsScreen: React.FC = () => {
               ];
 
               const dgBarData = allTimestamps.map((ts: string, i: number) => {
-                console.log("dgBarData --",dgBarData)
                 const gridVal  = Math.max(0, gridMap[ts]  ?? 0);
                 const solarVal = Math.max(0, solarMap[ts] ?? 0);
                 const dgVal    = Math.max(0, dgMap[ts]    ?? 0);
@@ -588,6 +587,7 @@ const AnalyticsScreen: React.FC = () => {
                   ),
                 };
               });
+             
               const dgStackMax = allTimestamps.reduce((acc: number, ts: string) => {
                 const total =
                   Math.max(0, gridMap[ts] ?? 0) +
