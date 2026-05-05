@@ -329,7 +329,8 @@ const AnalyticsScreen: React.FC = () => {
     try {
       const isCustomRange = fromDate !== null && toDate !== null;
       const {range, timeperiod} = isCustomRange
-        ? {range: 'custom', timeperiod: 'custom'}
+        ? { range: 'custom', timeperiod: 'custom' }
+        : activeTimeFilter == 'Week' ? { range: 'custom', timeperiod: 'Weekly' }
         : TIME_PERIOD_MAP[activeTimeFilter];
       const {fromDate: from, toDate: to} = getDateRange(activeTimeFilter, fromDate, toDate);
 
@@ -890,8 +891,7 @@ const AnalyticsScreen: React.FC = () => {
               const specificYieldData = raw.map((d: any) => ({
                 value: Math.max(0, d.specificYield ?? 0),
               }));
-              const useTimeStampAxis =
-                activeTimeFilter === 'Month' || activeTimeFilter === 'Year';
+              const useTimeStampAxis = activeTimeFilter != 'Daily';
               const labelStep = Math.max(1, Math.floor(raw.length / 5));
               const xLabels = raw.map((d: any, i: number) => {
                 if (useTimeStampAxis) {
