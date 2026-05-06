@@ -557,7 +557,7 @@ const AnalyticsScreen: React.FC = () => {
                 ? -(noOfSectionsBelowXAxis * primary.stepValue)
                 : undefined;
 
-              const leftYWidth = 44;
+              const leftYWidth = 32;
               const n = allTimestamps.length;
               const chartWidth = cardInnerWidth - leftYWidth;
               const dynWidth = activeChartType === 'line' 
@@ -803,7 +803,7 @@ const AnalyticsScreen: React.FC = () => {
               );
               const scScale = niceScale(Math.max(...allValues, 0));
 
-              const leftYWidth = 44;
+              const leftYWidth = 32;
               const scChartWidth = cardInnerWidth - leftYWidth;
               const dynWidth = activeChartType === 'line'
                 ? Math.max((sampled.length - 1) * chartSpacing + 40, scChartWidth)
@@ -956,8 +956,8 @@ const AnalyticsScreen: React.FC = () => {
                 {length: primary.noOfSections + 1},
                 (_, i) => (i * secStep).toFixed(2),
               );
-              const leftYWidth = useTimeStampAxis ? 44 : 35;
-              const rightYWidth = 30;
+              const leftYWidth = useTimeStampAxis ? 32 : 28;
+              const rightYWidth = 22;
               const chartWidth = cardInnerWidth - leftYWidth - rightYWidth;
               const dynWidth = activeChartType === 'line'
                 ? Math.max((energyData.length - 1) * chartSpacing + leftYWidth + rightYWidth, cardInnerWidth)
@@ -989,7 +989,7 @@ const AnalyticsScreen: React.FC = () => {
                               roundToDigits: 2,
                               yAxisColor: '#8979FF',
                               yAxisTextStyle: {...styles.axisText, color: '#8979FF'},
-                              yAxisLabelWidth: 40,
+                              yAxisLabelWidth: 28,
                               yAxisLabelTexts: secLabels,
                             }}
                             xAxisThickness={1}
@@ -1239,6 +1239,7 @@ const AnalyticsScreen: React.FC = () => {
                             spacing={2}
                             barBorderRadius={2}
                             yAxisThickness={1}
+                            yAxisLabelWidth={32}
                             secondaryYAxis={{
                               noOfSections: 3,
                               maxValue: yMaxIrr,
@@ -1260,7 +1261,7 @@ const AnalyticsScreen: React.FC = () => {
                         )}
                       </GHScrollView>
                       {activeChartType === 'bar' && (
-                        <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: 40, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
+                        <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: 28, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
                           {Array.from({length: 6}).map((_, i) => (
                             <Text key={i} style={[styles.axisText, {color: '#8979FF', textAlign: 'center', transform: [{translateY: i === 0 ? -6 : i === 5 ? 6 : 0}]}]}>
                               {(yMaxIrr - i * (yMaxIrr / 5)).toFixed(2)}
@@ -1425,6 +1426,7 @@ const AnalyticsScreen: React.FC = () => {
                           spacing={2}
                           barBorderRadius={2}
                           yAxisThickness={1}
+                          yAxisLabelWidth={32}
                           secondaryYAxis={{
                             noOfSections: 5,
                             maxValue: yMaxIrr,
@@ -1446,7 +1448,7 @@ const AnalyticsScreen: React.FC = () => {
                       )}
                     </GHScrollView>
                     {activeChartType === 'bar' && (
-                      <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: 40, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
+                      <View pointerEvents="none" style={{ position: 'absolute', right: 0, top: 0, height: 300, width: 28, backgroundColor: 'white', justifyContent: 'space-between', borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }}>
                         {Array.from({length: 6}).map((_, i) => (
                           <Text key={i} style={[styles.axisText, {color: '#8979FF', textAlign: 'center', transform: [{translateY: i === 0 ? -6 : i === 5 ? 6 : 0}]}]}>
                             {(yMaxIrr - i * (yMaxIrr / 5)).toFixed(2)}
@@ -1508,10 +1510,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   card: {
-    padding: spacing.md,
+    padding: spacing.xs,
     borderRadius: borderRadius.lg,
     marginBottom: spacing.xs,
     shadowOffset: {width: 0, height: 2},
@@ -1532,7 +1534,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     backgroundColor: colors.white,
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.xs,
   },
   chartTitle: {
     fontSize: fontSize.lg,

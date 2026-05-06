@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Image, ImageBackground, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Image, ImageBackground, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { AxiosError } from 'axios';
 import { fontSize, fontWeight, borderRadius, spacing, colors } from '../../theme/spacing';
 import { Input } from '../../components';
@@ -7,6 +7,7 @@ import Button from '../../components/Button';
 import AuthService from '@/api/authService';
 import { PassEncrypt } from '@/utils/encryption';
 import { useAuth } from '@/context';
+import Entypo from 'react-native-vector-icons/Entypo';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -15,6 +16,7 @@ const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
 
   const validate = (): boolean => {
@@ -86,13 +88,26 @@ const LoginScreen: React.FC = () => {
             keyboardType='email-address'
             autoCapitalize='none'
           />
-          <Input
-            placeholder='Enter Password'
-            value={password}
-            onChangeText={(text) => { setPassword(text); setErrors(prev => ({ ...prev, password: undefined })); }}
-            error={errors.password}
-            secureTextEntry
-          />
+          <View style={styles.passwordWrapper}>
+            <Input
+              placeholder='Enter Password'
+              value={password}
+              onChangeText={(text) => { setPassword(text); setErrors(prev => ({ ...prev, password: undefined })); }}
+              error={errors.password}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeIcon}
+              onPress={() => setShowPassword(prev => !prev)}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+            >
+              <Entypo
+                name={showPassword ? 'eye' : 'eye-with-line'}
+                size={20}
+                color='#94A3B8'
+              />
+            </TouchableOpacity>
+          </View>
           <Button title='Login' onPress={handleLogin} />
           <Text style={styles.forgotPassword}>Forgot Password?</Text>
         </View>
@@ -157,6 +172,15 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textAlign: 'right',
     marginTop: spacing.md,
+  },
+  passwordWrapper: {
+    width: '100%',
+    position: 'relative',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: spacing.md,
+    top: 15,
   },
 });
 
