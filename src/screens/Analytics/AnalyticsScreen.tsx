@@ -162,7 +162,13 @@ const AnalyticsScreen: React.FC = () => {
 
   // Reset zoom & selection when chart type/filter changes
   useEffect(() => {
-    let points = chartData?.length || 1;
+    let points = 1;
+    if (selectedChart === 'dg_pv_grid_management') {
+      const dgRaw = chartData as any;
+      points = Array.isArray(dgRaw?.solarMeter) ? dgRaw.solarMeter.length : 1;
+    } else {
+      points = chartData?.length || 1;
+    }
     const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week';
     
     if (selectedChart === 'string_current' && isDailyOrWeekly) {
@@ -370,6 +376,8 @@ const AnalyticsScreen: React.FC = () => {
     const isCustomRange = fromDate !== null && toDate !== null;
     const {range, timeperiod} = isCustomRange
       ? {range: 'custom', timeperiod: 'custom'}
+      : activeTimeFilter == 'Daily' && activeChartType == 'bar' ? { range: 'custom', timeperiod: 'Daily' }
+      : activeTimeFilter == 'Week' && activeChartType == 'bar' ? { range: 'custom', timeperiod: 'Weekly' }
       : TIME_PERIOD_MAP[activeTimeFilter];
     const {fromDate: from, toDate: to} = getDateRange(activeTimeFilter, fromDate, toDate);
     const data = {
@@ -716,86 +724,130 @@ const AnalyticsScreen: React.FC = () => {
                             } : undefined}
                           />
                         ) : (
-                          <BarChart
-                            data={allTimestamps.map((ts: string, i: number) => {
-                              const solarVal = Math.max(0, solarMap[ts] ?? 0);
-                              const gridVal  = Math.max(0, gridMap[ts]  ?? 0);
-                              const dgVal    = Math.max(0, dgMap[ts]    ?? 0);
-                              const isSelected = selectedBarIndex === i;
-                              return {
-                                value: solarVal,
-                                frontColor: 'rgba(255,165,0,0.85)',
-                                label: xLabels[i],
-                                onPress: () => setSelectedBarIndex(isSelected ? null : i),
-                                topLabelComponent: () => isSelected ? (
-                                  <View style={styles.barTooltip} pointerEvents="none">
-                                    <Text style={styles.barTooltipValue}>Solar: {formatEnergyYAxisLabel(String(solarVal))}</Text>
-                                    <Text style={styles.barTooltipValue}>Grid: {formatEnergyYAxisLabel(String(gridVal))}</Text>
-                                    <Text style={styles.barTooltipValue}>DG: {formatEnergyYAxisLabel(String(dgVal))}</Text>
-                                    <View style={styles.barTooltipArrow} />
-                                  </View>
-                                ) : (
-                                  <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(solarVal))}</Text>
-                                ),
-                              };
-                            })}
-                            showLine
-                            lineData={allTimestamps.map((ts: string) => ({
-                              value: Math.max(0, gridMap[ts] ?? 0),
-                              dataPointText: '',
-                            }))}
-                            lineData2={allTimestamps.map((ts: string) => ({
-                              value: Math.max(0, dgMap[ts] ?? 0),
-                              dataPointText: '',
-                            }))}
-                            lineConfig={{
-                              color: 'rgba(100,149,237,0.85)',
-                              thickness: 2,
-                              hideDataPoints: false,
-                              dataPointsColor: 'rgba(100,149,237,0.85)',
-                            }}
-                            lineConfig2={{
-                              color: 'rgba(192,192,192,0.9)',
-                              thickness: 2,
-                              hideDataPoints: false,
-                              dataPointsColor: 'rgba(192,192,192,0.9)',
-                            }}
-                            height={300}
-                            width={dynWidth}
-                            barWidth={chartBarWidth}
-                            spacing={chartSpacing}
-                            barBorderRadius={2}
-                            yAxisThickness={1}
-                            yAxisLabelWidth={leftYWidth}
-                            xAxisThickness={1}
-                            xAxisColor="#E5E7EB"
-                            rulesColor="#E5E7EB"
-                            rulesType="dashed"
-                            dashGap={4}
-                            dashWidth={3}
-                            noOfSections={primary.noOfSections}
-                            maxValue={primary.maxValue}
-                            yAxisTextStyle={styles.axisText}
-                            xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
-                            formatYLabel={formatEnergyYAxisLabel}
-                          />
+                          (() => {
+                            const nBar = allTimestamps.length;
+                            const dgBarScreenW = Dimensions.get('window').width - 55 - leftYWidth;
+                            const chunk = isDailyOrWeekly
+                              ? (dgBarScreenW - 40) / Math.max(1, nBar)
+                              : (dgBarScreenW - 40) / Math.min(6, nBar);
+                            const barBarWidth   = isDailyOrWeekly ? Math.max(1, chunk * 0.7) : chartBarWidth;
+                            const barBarSpacing = isDailyOrWeekly ? Math.max(0.5, chunk * 0.3) : chartSpacing;
+                            const barDynWidth   = Math.max(
+                              nBar * barBarWidth + (nBar - 1) * barBarSpacing + 40,
+                              dgBarScreenW,
+                            );
+
+                            // Daily has 288 bars (5-min intervals) → label every 36th (3-hour marks)
+                            // Weekly/Monthly/Yearly have few bars → label every bar
+                            const barLabelStep = activeTimeFilter === 'Daily' ? 36 : 1;
+                            const barXLabels = allTimestamps.map((ts: any, i: number) => {
+                              if (i % barLabelStep !== 0) return '';
+                              
+                              if (activeTimeFilter === 'Year') return ts;
+                              if (activeTimeFilter === 'Monthly') return ts.length > 3 ? ts.substring(0, 3) : ts;
+
+                              const d = new Date(ts.replace(' ', 'T'));
+                              if (activeTimeFilter === 'Daily') {
+                                return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                              }
+                              // Fallback for custom/weekly or any unparseable strings
+                              if (isNaN(d.getTime())) {
+                                return ts.length > 3 ? ts.substring(0, 3) : ts;
+                              }
+                              return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            });
+
+                            // Conditional line overlays
+                            const barLineOverlays: any = {};
+                            if (hasGridData && hasDgData) {
+                              barLineOverlays.showLine   = true;
+                              barLineOverlays.lineData   = allTimestamps.map((ts: string) => ({ value: Math.max(0, gridMap[ts] ?? 0), dataPointText: '' }));
+                              barLineOverlays.lineConfig  = { color: 'rgba(100,149,237,0.85)', thickness: 2, hideDataPoints: true };
+                              barLineOverlays.lineData2  = allTimestamps.map((ts: string) => ({ value: Math.max(0, dgMap[ts]   ?? 0), dataPointText: '' }));
+                              barLineOverlays.lineConfig2 = { color: 'rgba(192,192,192,0.9)',  thickness: 2, hideDataPoints: true };
+                            } else if (hasGridData) {
+                              barLineOverlays.showLine   = true;
+                              barLineOverlays.lineData   = allTimestamps.map((ts: string) => ({ value: Math.max(0, gridMap[ts] ?? 0), dataPointText: '' }));
+                              barLineOverlays.lineConfig  = { color: 'rgba(100,149,237,0.85)', thickness: 2, hideDataPoints: true };
+                            } else if (hasDgData) {
+                              barLineOverlays.showLine   = true;
+                              barLineOverlays.lineData   = allTimestamps.map((ts: string) => ({ value: Math.max(0, dgMap[ts] ?? 0), dataPointText: '' }));
+                              barLineOverlays.lineConfig  = { color: 'rgba(192,192,192,0.9)',  thickness: 2, hideDataPoints: true };
+                            }
+
+                            return (
+                              <BarChart
+                                data={allTimestamps.map((ts: string, i: number) => {
+                                  const solarVal = Math.max(0, solarMap[ts] ?? 0);
+                                  const gridVal  = Math.max(0, gridMap[ts]  ?? 0);
+                                  const dgVal    = Math.max(0, dgMap[ts]    ?? 0);
+                                  const isSelected = selectedBarIndex === i;
+                                  return {
+                                    value: solarVal,
+                                    frontColor: 'rgba(255,165,0,0.85)',
+                                    labelComponent: barXLabels[i] ? () => (
+                                      <View style={{ width: Math.max(44, barBarWidth + barBarSpacing), marginLeft: 0, alignItems: 'center' }}>
+                                        <Text style={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}>{barXLabels[i]}</Text>
+                                      </View>
+                                    ) : undefined,
+                                    onPress: () => setSelectedBarIndex(isSelected ? null : i),
+                                    topLabelComponent: () => isSelected ? (
+                                      <View style={styles.barTooltip} pointerEvents="none">
+                                        <Text style={styles.barTooltipValue}>Solar: {formatEnergyYAxisLabel(String(solarVal))}</Text>
+                                        {hasGridData && <Text style={styles.barTooltipValue}>Grid: {formatEnergyYAxisLabel(String(gridVal))}</Text>}
+                                        {hasDgData   && <Text style={styles.barTooltipValue}>DG: {formatEnergyYAxisLabel(String(dgVal))}</Text>}
+                                        <View style={styles.barTooltipArrow} />
+                                      </View>
+                                    ) : (
+                                      <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(solarVal))}</Text>
+                                    ),
+                                  };
+                                })}
+                                {...barLineOverlays}
+                                height={300}
+                                width={barDynWidth}
+                                barWidth={barBarWidth}
+                                spacing={barBarSpacing}
+                                barBorderRadius={2}
+                                yAxisThickness={1}
+                                yAxisLabelWidth={leftYWidth}
+                                xAxisThickness={1}
+                                xAxisColor="#E5E7EB"
+                                rulesColor="#E5E7EB"
+                                rulesType="dashed"
+                                dashGap={4}
+                                dashWidth={3}
+                                noOfSections={primary.noOfSections}
+                                maxValue={primary.maxValue}
+                                yAxisTextStyle={styles.axisText}
+                                xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
+                                xAxisTextNumberOfLines={2}
+                                xAxisLabelsHeight={35}
+                                formatYLabel={formatEnergyYAxisLabel}
+                              />
+                            );
+                          })()
                         )}
                       </GHScrollView>
                     </View>
                   </GestureDetector>
                   <View style={styles.metrics}>
-                    <View style={styles.dgLegendItem}>
-                      <View style={styles.gridMeterColor} />
-                      <Text style={styles.dgLegendText}>Grid Meter</Text>
-                    </View>
+                    {hasGridData && (
+                      <View style={styles.dgLegendItem}>
+                        <View style={styles.gridMeterColor} />
+                        <Text style={styles.dgLegendText}>Grid Meter</Text>
+                      </View>
+                    )}
                     <View style={styles.dgLegendItem}>
                       <View style={styles.solarMeterColor} />
                       <Text style={styles.dgLegendText}>Solar Meter</Text>
                     </View>
-                    <View style={styles.dgLegendItem}>
-                      <View style={styles.dgMeterColor} />
-                      <Text style={styles.dgLegendText}>DG Meter</Text>
-                    </View>
+                    {hasDgData && (
+                      <View style={styles.dgLegendItem}>
+                        <View style={styles.dgMeterColor} />
+                        <Text style={styles.dgLegendText}>DG Meter</Text>
+                      </View>
+                    )}
                   </View>
                 </>
               );
