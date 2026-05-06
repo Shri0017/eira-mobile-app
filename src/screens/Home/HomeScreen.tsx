@@ -11,12 +11,10 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     const fetchDashboardDetailsAndSiteList = async () => {
       try {
-      setLoading(true);
+        setLoading(true);
         const dashboardDetailsResponse = await SiteListService.getDashboardDetailsByUserId();
-        console.log('get dashboard details response -->', dashboardDetailsResponse);
         setDashboardDetails(dashboardDetailsResponse);
         const siteListResponse = await SiteListService.getSiteListByUserId();
-        console.log('get site list response -->', siteListResponse);
         setSiteList(siteListResponse);
         setLoading(false);
       } catch (error) {

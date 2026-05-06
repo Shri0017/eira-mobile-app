@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   name: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
     color: colors.black,
     marginBottom: 2,
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   label: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     color: colors.mutedForeground,
   },
   value: {

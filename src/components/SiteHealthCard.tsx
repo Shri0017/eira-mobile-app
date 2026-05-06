@@ -120,12 +120,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   statusValue: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
     color: colors.black,
   },
   statusLabel: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     color: colors.mutedForeground,
     marginTop: 2,
   },

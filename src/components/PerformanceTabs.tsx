@@ -254,8 +254,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricValue: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
     color: colors.black,
     marginTop: spacing.sm,
   },
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
+    fontWeight: fontWeight.semibold,
     color: colors.mutedForeground,
   },
   tabTextActive: {
