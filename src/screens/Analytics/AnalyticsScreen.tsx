@@ -564,6 +564,53 @@ const AnalyticsScreen: React.FC = () => {
                 ? Math.max((n - 1) * chartSpacing + 40, chartWidth)
                 : Math.max(n * chartBarWidth + (n - 1) * chartSpacing + 40, chartWidth);
 
+              // ── Line chart: solar as primary, grid/DG conditional ──────────────
+              const hasGridData = gridArr.some((d: any) => d.todayEnergy != null && d.todayEnergy !== 0);
+              const hasDgData   = dgArr.some((d: any)   => d.todayEnergy != null && d.todayEnergy !== 0);
+
+              // Use ALL solarArr points; compute spacing to fit screenWidth; labels every 36th
+              const solarTimestamps = solarArr.map((d: any) => d.timeStamp as string);
+              const dgScreenW = Dimensions.get('window').width - 55 - leftYWidth;
+              const lineSpacing = isDailyOrWeekly
+                ? Math.max(1, (dgScreenW - 40) / Math.max(1, solarTimestamps.length - 1))
+                : chartSpacing;
+              const lineLabelStep = isDailyOrWeekly ? 36 : Math.max(1, Math.floor(solarTimestamps.length / 5));
+              const fmtLineLabel = (ts: string, i: number): string => {
+                if (i % lineLabelStep !== 0) return '';
+                const d = new Date(ts.replace(' ', 'T'));
+                if (activeTimeFilter === 'Week') {
+                  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}\n${String(d.getHours()).padStart(2, '0')}:00`;
+                }
+                return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+              };
+
+              const lineSolarData = solarTimestamps.map((ts: string, i: number) => ({
+                value: Math.max(0, solarMap[ts] ?? 0),
+                label: fmtLineLabel(ts, i),
+              }));
+              const lineGridData = solarTimestamps.map((ts: string) => ({ value: Math.max(0, gridMap[ts] ?? 0) }));
+              const lineDgData   = solarTimestamps.map((ts: string) => ({ value: Math.max(0, dgMap[ts]   ?? 0) }));
+
+              const lineConditionalDataSet: any[] = [];
+              if (hasGridData) {
+                lineConditionalDataSet.push({ data: lineGridData, color: 'rgba(100,149,237,0.85)', hideDataPoints: true, thickness: 2 });
+              }
+              if (hasDgData) {
+                lineConditionalDataSet.push({ data: lineDgData, color: 'rgba(192,192,192,0.9)', hideDataPoints: true, thickness: 2 });
+              }
+
+              const lineAllValues = [
+                ...lineSolarData.map(d => d.value),
+                ...(hasGridData ? lineGridData.map(d => d.value) : []),
+                ...(hasDgData   ? lineDgData.map(d => d.value)   : []),
+              ];
+              const linePrimary = niceScale(Math.max(...lineAllValues.filter(v => v >= 0), 0));
+
+              const lineDynWidth = isDailyOrWeekly
+                ? Math.max((solarTimestamps.length - 1) * lineSpacing + 40, dgScreenW)
+                : Math.max((solarTimestamps.length - 1) * lineSpacing + 40, cardInnerWidth - leftYWidth);
+
+              // ── Bar / shared data (allTimestamps-based) ──────────────────────────
               const dataSet = [
                 {data: gridData,  color: 'rgba(100,149,237,0.85)', hideDataPoints: true, thickness: 2},
                 {data: solarData, color: 'rgba(255,165,0,0.85)',   hideDataPoints: true, thickness: 2},
@@ -604,24 +651,28 @@ const AnalyticsScreen: React.FC = () => {
                       <GHScrollView horizontal scrollEnabled={scrollEnabled} showsHorizontalScrollIndicator={false} style={activeChartType === 'bar' ? {marginRight: leftYWidth} : undefined}>
                         {activeChartType === 'line' ? (
                           <LineChart
-                            data={dataSet[0]?.data ?? []}
-                            dataSet={dataSet.slice(1)}
+                            data={lineSolarData}
+                            dataSet={lineConditionalDataSet}
                             height={300}
-                            width={dynWidth}
-                            spacing={chartSpacing}
+                            width={lineDynWidth}
+                            spacing={lineSpacing}
                             yAxisLabelWidth={leftYWidth}
-                            noOfSections={primary.noOfSections}
-                            maxValue={primary.maxValue}
-                            stepValue={primary.stepValue}
-                            {...(hasNegative ? {mostNegativeValue, noOfSectionsBelowXAxis} : {})}
+                            noOfSections={linePrimary.noOfSections}
+                            maxValue={linePrimary.maxValue}
+                            stepValue={linePrimary.stepValue}
                             yAxisThickness={1}
+                            yAxisColor="rgba(255,165,0,0.85)"
                             xAxisThickness={1}
                             xAxisColor="#E5E7EB"
                             rulesColor="#E5E7EB"
                             rulesType="dashed"
                             dashGap={4}
                             dashWidth={3}
-                            yAxisTextStyle={styles.axisText}
+                            curved
+                            hideDataPoints
+                            color1="rgba(255,165,0,0.85)"
+                            thickness={2}
+                            yAxisTextStyle={{...styles.axisText, color: 'rgba(255,165,0,0.85)'}}
                             xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
                             xAxisTextNumberOfLines={2}
                             xAxisLabelsHeight={35}
@@ -632,27 +683,36 @@ const AnalyticsScreen: React.FC = () => {
                               pointerStripWidth: 1,
                               pointerColor: '#64748B',
                               radius: 4,
-                              pointerLabelWidth: 170,
-                              pointerLabelHeight: 84,
+                              pointerLabelWidth: 180,
+                              pointerLabelHeight: hasGridData && hasDgData ? 84 : hasDgData || hasGridData ? 64 : 44,
                               activatePointersOnLongPress: false,
                               persistPointer: true,
                               autoAdjustPointerLabelPosition: true,
-                              pointerLabelComponent: (items: any[]) => (
-                                <View style={styles.lineTooltip} pointerEvents="none">
-                                  <View style={styles.lineTooltipRow}>
-                                    <View style={[styles.lineTooltipDot, {backgroundColor: 'rgba(100,149,237,0.85)'}]} />
-                                    <Text style={styles.lineTooltipText}>Grid: {formatEnergyYAxisLabel(String((items[0]?.value ?? 0).toFixed(1)))}</Text>
+                              pointerLabelComponent: (items: any[]) => {
+                                let idx = 0;
+                                const gridIdx  = hasGridData ? idx++ : -1;
+                                const dgIdx    = hasDgData   ? idx++ : -1;
+                                return (
+                                  <View style={styles.lineTooltip} pointerEvents="none">
+                                    <View style={styles.lineTooltipRow}>
+                                      <View style={[styles.lineTooltipDot, {backgroundColor: 'rgba(255,165,0,0.85)'}]} />
+                                      <Text style={styles.lineTooltipText}>Solar: {formatEnergyYAxisLabel(String((items[0]?.value ?? 0).toFixed(1)))}</Text>
+                                    </View>
+                                    {hasGridData && (
+                                      <View style={styles.lineTooltipRow}>
+                                        <View style={[styles.lineTooltipDot, {backgroundColor: 'rgba(100,149,237,0.85)'}]} />
+                                        <Text style={styles.lineTooltipText}>Grid: {formatEnergyYAxisLabel(String((items[gridIdx]?.value ?? 0).toFixed(1)))}</Text>
+                                      </View>
+                                    )}
+                                    {hasDgData && (
+                                      <View style={styles.lineTooltipRow}>
+                                        <View style={[styles.lineTooltipDot, {backgroundColor: 'rgba(192,192,192,0.9)'}]} />
+                                        <Text style={styles.lineTooltipText}>DG: {formatEnergyYAxisLabel(String((items[dgIdx]?.value ?? 0).toFixed(1)))}</Text>
+                                      </View>
+                                    )}
                                   </View>
-                                  <View style={styles.lineTooltipRow}>
-                                    <View style={[styles.lineTooltipDot, {backgroundColor: 'rgba(255,165,0,0.85)'}]} />
-                                    <Text style={styles.lineTooltipText}>Solar: {formatEnergyYAxisLabel(String((items[1]?.value ?? 0).toFixed(1)))}</Text>
-                                  </View>
-                                  <View style={styles.lineTooltipRow}>
-                                    <View style={[styles.lineTooltipDot, {backgroundColor: 'rgba(192,192,192,0.9)'}]} />
-                                    <Text style={styles.lineTooltipText}>DG: {formatEnergyYAxisLabel(String((items[2]?.value ?? 0).toFixed(1)))}</Text>
-                                  </View>
-                                </View>
-                              ),
+                                );
+                              },
                             } : undefined}
                           />
                         ) : (
