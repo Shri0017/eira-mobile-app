@@ -16,6 +16,7 @@ export const borderRadius = {
 };
 
 export const fontSize = {
+  xxs: 8,
   xs: 10,
   sm: 12,
   md: 14,
@@ -43,4 +44,5 @@ export const colors = {
   black: '#000000',
   backgroundSecondary: '#F8FAFC',
   gray: '#4A5565',
+  gray300: '#d6d7d8ff',
 };

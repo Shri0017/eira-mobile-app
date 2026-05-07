@@ -174,14 +174,16 @@ const AnalyticsScreen: React.FC = () => {
     } else {
       points = chartData?.length || 1;
     }
-    const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week';
+    const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week' || activeTimeFilter === 'Custom';
     
     if (selectedChart === 'string_current') {
       const maxPoints = 80;
       const sampleFactor = Math.max(1, Math.floor(points / maxPoints));
       points = Math.ceil(points / sampleFactor);
     } else if (selectedChart === ANALYTICS_TYPES[0].value && isDailyOrWeekly && activeChartType === 'line') {
-      points = Math.ceil(points / 6);
+      const maxPoints = 80;
+      const sampleFactor = Math.max(1, Math.floor(points / maxPoints));
+      points = Math.ceil(points / sampleFactor);
     }
     
     // Target width should be window width - card padding (72) - YAxis width (32)
@@ -316,7 +318,7 @@ const AnalyticsScreen: React.FC = () => {
       setLoading(true);
       const isCustomRange = (fromDate !== null && toDate !== null) || (activeChartType === 'bar' && ['Daily', 'Week'].includes(activeTimeFilter));
       const {range, timeperiod} = isCustomRange
-        ? {range: 'custom', timeperiod: 'custom'}
+        ? activeChartType == 'line' ? {range: 'daily', timeperiod: 'custom'} : {range: 'custom', timeperiod: 'custom'}
         : TIME_PERIOD_MAP[activeTimeFilter];
       const {fromDate: from, toDate: to} = getDateRange(activeTimeFilter, fromDate, toDate);
 
@@ -1464,9 +1466,10 @@ const AnalyticsScreen: React.FC = () => {
               );
             }
 
-            /* ─────────────────────────────── Daily / Weekly ─────────────────────────────── */
-            const sampleStep = 6;
-            const sampled = activeChartType === 'bar' ? raw : raw.filter((_: any, i: number) => i % sampleStep === 0);
+            /* ─────────────────────────────── Daily / Weekly / Custom ─────────────────────────────── */
+            const maxPoints = 80;
+            const sampleFactor = Math.max(1, Math.floor(raw.length / maxPoints));
+            const sampled = activeChartType === 'bar' ? raw : raw.filter((_: any, i: number) => i % sampleFactor === 0);
             const activePowerData = sampled.map((d: any) => ({
               value: Math.max(0, d.totalActivePower ?? d.todayEnergy ?? 0),
             }));
@@ -1482,16 +1485,17 @@ const AnalyticsScreen: React.FC = () => {
               }
               if (i % labelStep === 0) {
                 const date = new Date(ts.replace(' ', 'T'));
-                if (activeTimeFilter === 'Week') {
-                  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}\n${String(date.getHours()).padStart(2, '0')}:00`;
+                if (activeTimeFilter === 'Week' || activeTimeFilter === 'Custom') {
+                  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}\n${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                 }
-                return `${String(date.getHours()).padStart(2, '0')}:00`;
+                return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
               }
               return '';
             });
             const yMax    = roundUpMax(Math.max(...activePowerData.map((d: any) => d.value), 0));
             const yMaxIrr = roundUpMax(Math.max(...irradiationData.map((d: any) => d.value), 0));
-            const dynWidth = Math.max((activePowerData.length - 1) * chartSpacing + 40, Dimensions.get('window').width - 55);
+            const scChartWidth = cardInnerWidth - 32;
+            const dynWidth = Math.max((activePowerData.length - 1) * chartSpacing + 80, scChartWidth);
 
             return (
               <>
@@ -1505,6 +1509,8 @@ const AnalyticsScreen: React.FC = () => {
                           height={300}
                           width={dynWidth}
                           spacing={chartSpacing}
+                          initialSpacing={20}
+                          endSpacing={60}
                           color1="#FF928A"
                           secondaryLineConfig={{color: '#8979FF', thickness: 2, curved: true}}
                           thickness={2}
@@ -1674,20 +1680,22 @@ const AnalyticsScreen: React.FC = () => {
             }}
             style={styles.tabNavigator}
           />
-          {/* <Text style={styles.chartTitle}>Range</Text> */}
-          <Calendar
-            fromDate={fromDate}
-            toDate={toDate}
-            onFromChange={setFromDate}
-            onToChange={setToDate}
-          />
-          <TouchableOpacity 
-            style={[styles.applyButton, (!fromDate || !toDate) && styles.applyButtonDisabled]} 
-            onPress={handleApplyCustomRange}
-            disabled={!fromDate || !toDate}
-          >
-            <Text style={styles.applyButtonText}>Apply</Text>
-          </TouchableOpacity>
+          <View style={{ paddingVertical: spacing.md }}>
+            <Text>Custom Date Range</Text>
+            <Calendar
+              fromDate={fromDate}
+              toDate={toDate}
+              onFromChange={setFromDate}
+              onToChange={setToDate}
+            />
+            <TouchableOpacity 
+              style={[styles.applyButton, (!fromDate || !toDate) && styles.applyButtonDisabled]} 
+              onPress={handleApplyCustomRange}
+              disabled={!fromDate || !toDate}
+            >
+              <Text style={styles.applyButtonText}>Apply</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -1711,7 +1719,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   cardTitle: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     marginBottom: spacing.sm,
   },
@@ -1727,7 +1735,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xs,
   },
   chartTitle: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
     marginBottom: spacing.xs,
   },
@@ -1775,9 +1783,9 @@ const styles = StyleSheet.create({
     height: 5,
     backgroundColor: '#FF928A',
   },
-  axisText: {fontSize: 9, color: colors.mutedForeground},
-  xLabel: {fontSize: 9, color: colors.mutedForeground, width: 44, textAlign: 'center'},
-  xLabelWide: {fontSize: 9, color: colors.mutedForeground, width: 60, textAlign: 'center'},
+  axisText: {fontSize: fontSize.xxs, color: colors.mutedForeground},
+  xLabel: {fontSize: fontSize.xxs, color: colors.mutedForeground, width: 44, textAlign: 'center'},
+  xLabelWide: {fontSize: fontSize.xxs, color: colors.mutedForeground, width: 60, textAlign: 'center'},
   energyGenerationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1799,7 +1807,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#8979FF',
   },
   noDataText: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     color: colors.mutedForeground,
     textAlign: 'center',
     paddingVertical: spacing.xl,
@@ -1850,7 +1858,7 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
   },
   barValueLabel: {
-    fontSize: 8,
+    fontSize: fontSize.xxs,
     color: colors.mutedForeground,
     marginBottom: 2,
     textAlign: 'center',
@@ -1906,7 +1914,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   lineTooltipText: {
-    fontSize: 11,
+    fontSize: fontSize.xs,
     color: '#374151',
     flex: 1,
   },
@@ -1927,7 +1935,7 @@ const styles = StyleSheet.create({
   },
   barTooltipValue: {
     color: '#E5E7EB',
-    fontSize: 9,
+    fontSize: fontSize.xxs,
   },
   barTooltipArrow: {
     position: 'absolute',
