@@ -171,6 +171,13 @@ const AnalyticsScreen: React.FC = () => {
     if (selectedChart === 'dg_pv_grid_management') {
       const dgRaw = chartData as any;
       points = Array.isArray(dgRaw?.solarMeter) ? dgRaw.solarMeter.length : 1;
+    } else if (selectedChart === 'specific_yield') {
+      if (activeChartType === 'line' && (activeTimeFilter === 'Week' || activeTimeFilter === 'Custom')) {
+        const uniqueDates = new Set(Array.isArray(chartData) ? chartData.map((d: any) => d.timeStamp ?? d.timestamp ?? d.TimeStamp) : []);
+        points = Math.max(1, uniqueDates.size);
+      } else {
+        points = chartData?.length || 1;
+      }
     } else {
       points = chartData?.length || 1;
     }
@@ -365,8 +372,8 @@ const AnalyticsScreen: React.FC = () => {
     try {
       const isCustomRange = fromDate !== null && toDate !== null;
       const {range, timeperiod} = isCustomRange
-        ? { range: 'custom', timeperiod: 'custom' }
-        : activeTimeFilter == 'Week' ? { range: 'custom', timeperiod: 'Weekly' }
+        ? activeChartType == 'line' ? {range: 'daily', timeperiod: 'custom'} : { range: 'custom', timeperiod: 'custom' }
+        : activeTimeFilter == 'Week' ?  activeChartType == 'line' ? {range: 'daily', timeperiod: 'Weekly'} : { range: 'custom', timeperiod: 'Weekly' }
         : TIME_PERIOD_MAP[activeTimeFilter];
       const {fromDate: from, toDate: to} = getDateRange(activeTimeFilter, fromDate, toDate);
 
@@ -387,6 +394,7 @@ const AnalyticsScreen: React.FC = () => {
         parameters: [],
         energyGenBasedOn: 0,
         domain: 'Ice',
+        capacity: 14000,
       };
       console.log('fetchSpecificYield data -->', data);
       const response = await AnalyticsService.getSpecificYield(data);
@@ -519,12 +527,20 @@ const AnalyticsScreen: React.FC = () => {
                 selectedChart === 'string_current' ? [
                   {key: 'line', title: 'Line'},
                 ] :
-                ['Daily', 'Week', 'Custom'].includes(activeTimeFilter) && selectedChart != 'specific_yield' ? [
-                {key: 'line', title: 'Line'},
-                {key: 'bar',  title: 'Bar'},
-              ] : [
-                {key: 'bar',  title: 'Bar'},
-              ]}
+                selectedChart === 'specific_yield' ? (
+                  ['Week', 'Custom'].includes(activeTimeFilter) ? [
+                    {key: 'line', title: 'Line'},
+                    {key: 'bar',  title: 'Bar'},
+                  ] : [
+                    {key: 'bar',  title: 'Bar'},
+                  ]
+                ) :
+                ['Daily', 'Week', 'Custom'].includes(activeTimeFilter) ? [
+                  {key: 'line', title: 'Line'},
+                  {key: 'bar',  title: 'Bar'},
+                ] : [
+                  {key: 'bar',  title: 'Bar'},
+                ]}
               activeTab={activeChartType}
               onTabChange={(key) => { setLoading(true); setActiveChartType(key); }}
             />
@@ -1144,12 +1160,105 @@ const AnalyticsScreen: React.FC = () => {
                 ? Math.max((energyData.length - 1) * chartSpacing + leftYWidth + rightYWidth, cardInnerWidth)
                 : Math.max(energyData.length * chartBarWidth + (energyData.length - 1) * chartSpacing + leftYWidth + rightYWidth, cardInnerWidth);
 
+              const isMultiLine = activeChartType === 'line' && (activeTimeFilter === 'Week' || activeTimeFilter === 'Custom');
+              
+              const CHART_COLORS = ['#4b8aff', '#8979FF', '#FF928A', '#34d399', '#fbbf24', '#f472b6', '#38bdf8', '#c084fc', '#a3e635', '#fb923c', '#fb7185', '#2dd4bf', '#818cf8', '#e879f9', '#4ade80'];
+              const uniqueDates = isMultiLine ? Array.from(new Set(raw.map((d: any) => d.timeStamp ?? d.timestamp ?? d.TimeStamp))) : [];
+              const uniqueEqs = isMultiLine ? Array.from(new Set(raw.map((d: any) => d.equipmentId))) : [];
+
+              const multiLineDataSet = (() => {
+                if (!isMultiLine) return [];
+                const recordMap = new Map();
+                for (let i = 0; i < raw.length; i++) {
+                  const d = raw[i];
+                  const date = d.timeStamp ?? d.timestamp ?? d.TimeStamp;
+                  recordMap.set(`${d.equipmentId}_${date}`, d);
+                }
+                return uniqueEqs.map((eqId: any, eqIndex: number) => {
+                  const eqData = uniqueDates.map((date: any) => {
+                    const record = recordMap.get(`${eqId}_${date}`);
+                    return { value: Math.max(0, record?.specificYield ?? 0) };
+                  });
+                  return {
+                    data: eqData,
+                    color: CHART_COLORS[eqIndex % CHART_COLORS.length],
+                    thickness: 2,
+                    hideDataPoints: false,
+                    dataPointColor: CHART_COLORS[eqIndex % CHART_COLORS.length],
+                  };
+                });
+              })();
+
+              const multiLineMax = isMultiLine ? niceScale(Math.max(...raw.map((d: any) => Math.max(0, d.specificYield ?? 0)), 0)) : {maxValue: 10, noOfSections: 5, stepValue: 2};
+              
+              const xLabelsMulti = uniqueDates.map((date: any) => {
+                 const d = new Date(String(date).replace(' ', 'T'));
+                 return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+              });
+
               return (
                 <>
                   <GestureDetector gesture={pinchGesture}>
                     <View>
                       <GHScrollView horizontal scrollEnabled={scrollEnabled} showsHorizontalScrollIndicator={false} style={activeChartType === 'bar' ? {marginRight: rightYWidth} : undefined}>
                         {activeChartType === 'line' ? (
+                          isMultiLine ? (
+                            <LineChart
+                              data={multiLineDataSet[0]?.data ?? []}
+                              dataSet={multiLineDataSet.slice(1)}
+                              isAnimated={false}
+                              height={300}
+                              width={Math.max((uniqueDates.length - 1) * chartSpacing + 80, cardInnerWidth - 32)}
+                              spacing={chartSpacing}
+                              initialSpacing={20}
+                              endSpacing={60}
+                              yAxisLabelWidth={32}
+                              noOfSections={multiLineMax.noOfSections}
+                              maxValue={multiLineMax.maxValue}
+                              stepValue={multiLineMax.stepValue}
+                              yAxisThickness={1}
+                              xAxisThickness={1}
+                              xAxisColor="#E5E7EB"
+                              rulesColor="#E5E7EB"
+                              rulesType="dashed"
+                              dashGap={4}
+                              dashWidth={3}
+                              yAxisTextStyle={styles.axisText}
+                              xAxisLabelTextStyle={styles.xLabel}
+                              xAxisTextNumberOfLines={2}
+                              xAxisLabelsHeight={35}
+                              xAxisLabelTexts={xLabelsMulti}
+                              pointerConfig={!isPinchingState ? {
+                                pointerStripHeight: 300,
+                                pointerStripColor: '#94A3B8',
+                                pointerStripWidth: 1,
+                                pointerColor: '#64748B',
+                                radius: 4,
+                                pointerLabelWidth: 180,
+                                pointerLabelHeight: 120,
+                                activatePointersOnLongPress: false,
+                                persistPointer: true,
+                                autoAdjustPointerLabelPosition: true,
+                                pointerLabelComponent: (items: any[]) => (
+                                  <View style={styles.lineTooltip} pointerEvents="none">
+                                    {items.slice(0, 8).map((item: any, i: number) => {
+                                      const eqId = uniqueEqs[i];
+                                      const eqName = equipmentList.find((e: any) => e.equipmentId === eqId)?.displayName || `INV ${eqId}`;
+                                      return (
+                                        <View key={i} style={styles.lineTooltipRow}>
+                                          <View style={[styles.lineTooltipDot, {backgroundColor: CHART_COLORS[i % CHART_COLORS.length]}]} />
+                                          <Text style={styles.lineTooltipText} numberOfLines={1}>{eqName}: {(item?.value ?? 0).toFixed(2)}</Text>
+                                        </View>
+                                      );
+                                    })}
+                                    {items.length > 8 && (
+                                      <Text style={[styles.lineTooltipText, {textAlign: 'center', marginTop: 2}]}>+ {items.length - 8} more</Text>
+                                    )}
+                                  </View>
+                                ),
+                              } : undefined}
+                            />
+                          ) : (
                           <LineChart
                             data={energyData}
                             secondaryData={specificYieldData}
@@ -1211,6 +1320,7 @@ const AnalyticsScreen: React.FC = () => {
                               ),
                             } : undefined}
                           />
+                          )
                         ) : (
                           <BarChart
                             data={raw.map((d: any, i: number) => {
@@ -1281,10 +1391,12 @@ const AnalyticsScreen: React.FC = () => {
                     </View>
                   </GestureDetector>
                   <View style={styles.metrics}>
-                    <View style={styles.energyGenerationContainer}>
-                      <View style={styles.energyGenerationColor} />
-                      <Text>Energy Generation</Text>
-                    </View>
+                    {!isMultiLine && (
+                      <View style={styles.energyGenerationContainer}>
+                        <View style={styles.energyGenerationColor} />
+                        <Text>Energy Generation</Text>
+                      </View>
+                    )}
                     <View style={styles.specificYieldContainer}>
                       <View style={styles.specificYieldColor} />
                       <Text>Specific Yield</Text>
