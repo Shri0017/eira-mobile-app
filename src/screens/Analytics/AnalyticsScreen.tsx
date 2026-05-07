@@ -60,13 +60,14 @@ const fmtTime = (ts: string): string => {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 };
 
-const TIME_FILTERS = ['Daily', 'Week', 'Month', 'Year'] as const;
+const TIME_FILTERS = ['Daily', 'Week', 'Month', 'Year', 'Custom'] as const;
 
 const TIME_PERIOD_MAP: Record<string, {range: string; timeperiod: string}> = {
   Daily: {range: 'daily',     timeperiod: 'Daily'},
   Week:  {range: 'daily',     timeperiod: 'Weekly'},
   Month: {range: 'yearly',    timeperiod: 'Monthly'},
   Year:  {range: 'yearlyCum', timeperiod: 'Yearly'},
+  Custom:{range: 'custom',    timeperiod: 'custom'},
 };
 
 const getDateRange = (period: string, fromDate: Date | null, toDate: Date | null) => {
@@ -136,7 +137,7 @@ const AnalyticsScreen: React.FC = () => {
     }
   }, [selectedSite]);
 
-  useEffect(() => {
+  const fetchAnalyticsData = () => {
     if (!selectedSite) return;
 
     const id = ++fetchIdRef.current;
@@ -158,7 +159,11 @@ const AnalyticsScreen: React.FC = () => {
     } else {
       guard(() => fetchKeyMetrics(id));
     }
-  }, [activeChartType,activeTimeFilter, fromDate, toDate, selectedChart, equipmentList, selectedSite]);
+  };
+
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, [activeChartType, activeTimeFilter, selectedChart, equipmentList, selectedSite]);
 
   // Reset zoom & selection when chart type/filter changes
   useEffect(() => {
@@ -171,13 +176,16 @@ const AnalyticsScreen: React.FC = () => {
     }
     const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week';
     
-    if (selectedChart === 'string_current' && isDailyOrWeekly) {
-      points = Math.ceil(points / 6);
+    if (selectedChart === 'string_current') {
+      const maxPoints = 80;
+      const sampleFactor = Math.max(1, Math.floor(points / maxPoints));
+      points = Math.ceil(points / sampleFactor);
     } else if (selectedChart === ANALYTICS_TYPES[0].value && isDailyOrWeekly && activeChartType === 'line') {
       points = Math.ceil(points / 6);
     }
     
-    const screenWidth = Dimensions.get('window').width - 55;
+    // Target width should be window width - card padding (72) - YAxis width (32)
+    const screenWidth = Dimensions.get('window').width - 104;
     let newSpacing = 40;
     let newBarWidth = 16;
 
@@ -186,8 +194,8 @@ const AnalyticsScreen: React.FC = () => {
         newSpacing = (screenWidth - 40) / Math.max(1, points - 1);
       } else {
         const totalSpace = screenWidth - 40;
-        const chunk = totalSpace / Math.min(6, points);
-        newBarWidth = chunk * 0.7;
+        const chunk = totalSpace / Math.min(3, points);
+        newBarWidth = chunk * 0.6;
         newSpacing = chunk * 0.3;
       }
     }
@@ -253,6 +261,8 @@ const AnalyticsScreen: React.FC = () => {
     if (chart.value === selectedChart) return;
     if (chart.value === 'specific_yield') {
       setActiveChartType('bar');
+    } else if (chart.value === 'string_current') {
+      setActiveChartType('line');
     }
     setChartData([]);          // clear stale data from the previous analytics type
     setSelectedChart(chart.value);
@@ -260,6 +270,21 @@ const AnalyticsScreen: React.FC = () => {
 
   const handleSelectSite = (site: DropdownOption) => {
     setSelectedSite(site.value);
+  };
+
+  const handleApplyCustomRange = () => {
+    if (fromDate && toDate) {
+      if (activeChartType == 'line') {
+        setActiveChartType('bar');
+      }
+      if (activeTimeFilter !== 'Custom') {
+        setActiveTimeFilter('Custom');
+      } else {
+        fetchAnalyticsData();
+      }
+    } else {
+      Alert.alert('Please select both from and to dates');
+    }
   };
 
   const fetchSiteListByUserId = async () => {
@@ -407,23 +432,42 @@ const AnalyticsScreen: React.FC = () => {
 
   const fetchStringCurrent = async (fetchId: number) => {
     const isCustomRange = fromDate !== null && toDate !== null;
-    const {range, timeperiod} = isCustomRange
-      ? {range: 'custom', timeperiod: 'custom'}
-      : TIME_PERIOD_MAP[activeTimeFilter];
+    let range, timeperiod;
+    if (isCustomRange) {
+      range = 'custom';
+      timeperiod = 'custom';
+    } else {
+      if (activeTimeFilter === 'Daily') {
+         range = 'daily';
+         timeperiod = 'Daily';
+      } else if (activeTimeFilter === 'Week') {
+         range = 'custom';
+         timeperiod = 'Weekly';
+      } else if (activeTimeFilter === 'Month') {
+         range = 'custom';
+         timeperiod = 'Monthly';
+      } else if (activeTimeFilter === 'Year') {
+         range = 'custom';
+         timeperiod = 'Yearly';
+      } else {
+         range = 'custom';
+         timeperiod = 'Daily';
+      }
+    }
     const {fromDate: from, toDate: to} = getDateRange(activeTimeFilter, fromDate, toDate);
-    const Inputs = ['InputCurrent_01', 'InputCurrent_02', 'InputCurrent_03', 'InputCurrent_04', 'InputCurrent_05', 'InputCurrent_06', 'InputCurrent_07', 'InputCurrent_08', 'InputCurrent_09', 'InputCurrent_10', 'InputCurrent_11', 'InputCurrent_12'];
+    const Inputs = ['InputCurrent_01', 'InputCurrent_02', 'InputCurrent_03', 'InputCurrent_04'];
     const data = {
       GraphType: 'String Current',
       siteId: Number(selectedSite),
       fromDate: from,
       toDate: to,
-      equipmentIds: [803],
+      equipmentIds: [equipmentList[0]?.equipmentId],
       parameters: Inputs,
       range,
       timeperiod,
       intervalMins: 5,
       energyFlag: 0,
-      capacity: 532,
+      capacity: equipmentList.reduce((acc: number, eq: any) => acc + (eq.acCapacity || 0), 0) || 11200,
       energyGenBasedOn: 0,
       domain: 'Ice',
     };
@@ -469,7 +513,11 @@ const AnalyticsScreen: React.FC = () => {
               />
             </View>
             <TabNavigator
-              tabs={['Daily', 'Week'].includes(activeTimeFilter) && selectedChart != 'specific_yield' ? [
+              tabs={
+                selectedChart === 'string_current' ? [
+                  {key: 'line', title: 'Line'},
+                ] :
+                ['Daily', 'Week', 'Custom'].includes(activeTimeFilter) && selectedChart != 'specific_yield' ? [
                 {key: 'line', title: 'Line'},
                 {key: 'bar',  title: 'Bar'},
               ] : [
@@ -493,6 +541,7 @@ const AnalyticsScreen: React.FC = () => {
           {loading ? (
             <View style={{height: 300, justifyContent: 'center', alignItems: 'center'}}>
               <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{fontSize: 10, color: colors.gray, textAlign: 'center'}}>Loading data... might take upto 30 seconds for large datasets</Text>
             </View>
           ) : (() => {
             const raw = Array.isArray(chartData) ? chartData : [];
@@ -578,7 +627,7 @@ const AnalyticsScreen: React.FC = () => {
 
               // Use ALL solarArr points; compute spacing to fit screenWidth; labels every 36th
               const solarTimestamps = solarArr.map((d: any) => d.timeStamp as string);
-              const dgScreenW = Dimensions.get('window').width - 55 - leftYWidth;
+              const dgScreenW = cardInnerWidth - leftYWidth;
               const lineSpacing = isDailyOrWeekly
                 ? Math.max(1, (dgScreenW - 40) / Math.max(1, solarTimestamps.length - 1))
                 : chartSpacing;
@@ -859,11 +908,20 @@ const AnalyticsScreen: React.FC = () => {
                 return <Text style={styles.noDataText}>No data available</Text>;
               }
 
-              const SC_KEYS = [
-                'InputCurrent_01', 'InputCurrent_02', 'InputCurrent_03', 'InputCurrent_04',
-                'InputCurrent_05', 'InputCurrent_06', 'InputCurrent_07', 'InputCurrent_08',
-                'InputCurrent_09', 'InputCurrent_10', 'InputCurrent_11', 'InputCurrent_12',
-              ];
+              const allKeys = new Set<string>();
+              raw.forEach((item: any) => {
+                Object.keys(item).forEach(k => {
+                  if (k.startsWith('InputCurrent_')) {
+                    allKeys.add(k);
+                  }
+                });
+              });
+              const SC_KEYS = Array.from(allKeys).sort();
+
+              if (SC_KEYS.length === 0) {
+                 return <Text style={styles.noDataText}>No string current data available</Text>;
+              }
+
               const SC_COLORS = [
                 '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
                 '#9966FF', '#FF9F40', '#C9CBCF', '#7BC8A4',
@@ -873,9 +931,9 @@ const AnalyticsScreen: React.FC = () => {
               const isDailyOrWeekly = activeTimeFilter === 'Daily' || activeTimeFilter === 'Week';
               const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-              const sampled = isDailyOrWeekly
-                ? raw.filter((_: any, i: number) => i % 6 === 0)
-                : raw;
+              const maxPoints = 80;
+              const sampleFactor = Math.max(1, Math.floor(raw.length / maxPoints));
+              const sampled = raw.filter((_: any, i: number) => i % sampleFactor === 0);
 
               const labelStep = Math.max(1, Math.floor(sampled.length / 5));
               const scFmtLabel = (ts: string, i: number): string => {
@@ -901,32 +959,34 @@ const AnalyticsScreen: React.FC = () => {
 
               const xLabels = sampled.map((d: any, i: number) => scFmtLabel(d.TimeStamp ?? '', i));
 
+              const safeNum = (val: any) => Number.isNaN(Number(val)) ? 0 : Number(val ?? 0);
+
               const scDataSet = SC_KEYS.map((scKey, ki) => ({
                 data: sampled.map((d: any) => ({
-                  value: Math.max(0, (d[scKey] ?? 0)),
+                  value: safeNum(d[scKey]),
                 })),
-                color: SC_COLORS[ki],
+                color: SC_COLORS[ki % SC_COLORS.length],
                 hideDataPoints: true,
                 thickness: 1.5,
               }));
 
               const allValues = sampled.flatMap((d: any) =>
-                SC_KEYS.map(k => Math.max(0, d[k] ?? 0)),
+                SC_KEYS.map(k => safeNum(d[k])),
               );
               const scScale = niceScale(Math.max(...allValues, 0));
 
               const leftYWidth = 32;
               const scChartWidth = cardInnerWidth - leftYWidth;
               const dynWidth = activeChartType === 'line'
-                ? Math.max((sampled.length - 1) * chartSpacing + 40, scChartWidth)
-                : Math.max(sampled.length * chartBarWidth + (sampled.length - 1) * chartSpacing + 40, scChartWidth);
+                ? Math.max((sampled.length - 1) * chartSpacing + 80, scChartWidth)
+                : Math.max(sampled.length * chartBarWidth + (sampled.length - 1) * chartSpacing + 80, scChartWidth);
 
               const scStackData = sampled.map((d: any, i: number) => {
-                const total = SC_KEYS.reduce((sum: number, k: string) => sum + Math.max(0, d[k] ?? 0), 0);
+                const total = SC_KEYS.reduce((sum: number, k: string) => sum + Math.max(0, safeNum(d[k])), 0);
                 return {
                   stacks: SC_KEYS.map((k: string, ki: number) => ({
-                    value: Math.max(0, d[k] ?? 0),
-                    color: SC_COLORS[ki],
+                    value: Math.max(0, safeNum(d[k])),
+                    color: SC_COLORS[ki % SC_COLORS.length],
                   })),
                   label: xLabels[i],
                   topLabelComponent: () => (
@@ -935,7 +995,7 @@ const AnalyticsScreen: React.FC = () => {
                 };
               });
               const scStackMax = sampled.reduce((acc: number, d: any) => {
-                const total = SC_KEYS.reduce((sum: number, k: string) => sum + Math.max(0, d[k] ?? 0), 0);
+                const total = SC_KEYS.reduce((sum: number, k: string) => sum + Math.max(0, safeNum(d[k])), 0);
                 return Math.max(acc, total);
               }, 0);
               const scStackScale = niceScale(scStackMax);
@@ -948,11 +1008,13 @@ const AnalyticsScreen: React.FC = () => {
                         {activeChartType === 'line' ? (
                           <LineChart
                             data={scDataSet[0]?.data ?? []}
-                            dataSet={scDataSet.slice(1)}
+                            dataSet={scDataSet}
                             isAnimated={false}
                             height={300}
                             width={dynWidth}
                             spacing={chartSpacing}
+                            initialSpacing={20}
+                            endSpacing={60}
                             yAxisLabelWidth={leftYWidth}
                             noOfSections={scScale.noOfSections}
                             maxValue={scScale.maxValue}
@@ -966,6 +1028,8 @@ const AnalyticsScreen: React.FC = () => {
                             dashWidth={3}
                             yAxisTextStyle={styles.axisText}
                             xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
+                            xAxisTextNumberOfLines={2}
+                            xAxisLabelsHeight={35}
                             xAxisLabelTexts={xLabels}
                             formatYLabel={formatEnergyYAxisLabel}
                             pointerConfig={!isPinchingState ? {
@@ -983,8 +1047,8 @@ const AnalyticsScreen: React.FC = () => {
                                 <View style={styles.lineTooltip} pointerEvents="none">
                                   {items.slice(0, 6).map((item: any, i: number) => (
                                     <View key={i} style={styles.lineTooltipRow}>
-                                      <View style={[styles.lineTooltipDot, {backgroundColor: SC_COLORS[i]}]} />
-                                      <Text style={styles.lineTooltipText}>{`IC ${String(i + 1).padStart(2, '0')}: ${(item?.value ?? 0).toFixed(2)} A`}</Text>
+                                      <View style={[styles.lineTooltipDot, {backgroundColor: SC_COLORS[i % SC_COLORS.length]}]} />
+                                      <Text style={styles.lineTooltipText}>{`${SC_KEYS[i] || ''}: ${(item?.value ?? 0).toFixed(2)}`}</Text>
                                     </View>
                                   ))}
                                   {items.length > 6 && (
@@ -1025,12 +1089,15 @@ const AnalyticsScreen: React.FC = () => {
                     </View>
                   </GestureDetector>
                   <View style={styles.scLegendContainer}>
-                    {SC_KEYS.map((key, i) => (
-                      <View key={key} style={styles.scLegendItem}>
-                        <View style={[styles.scLegendDot, {backgroundColor: SC_COLORS[i]}]} />
-                        <Text style={styles.scLegendText}>{`IC ${String(i + 1).padStart(2, '0')}`}</Text>
-                      </View>
-                    ))}
+                    {SC_KEYS.map((key, i) => {
+                      const num = key.replace('InputCurrent_', '');
+                      return (
+                        <View key={key} style={styles.scLegendItem}>
+                          <View style={[styles.scLegendDot, {backgroundColor: SC_COLORS[i % SC_COLORS.length]}]} />
+                          <Text style={styles.scLegendText}>{`IC ${num}`}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 </>
               );
@@ -1591,25 +1658,36 @@ const AnalyticsScreen: React.FC = () => {
               {key: 'Daily', title: 'Daily'},
               {key: 'Week',  title: 'Week'},
               {key: 'Month', title: 'Month'},
-              {key: 'Year',  title: 'Year'},
+              {key: 'Year',  title: 'Year'}
             ]}
             activeTab={activeTimeFilter}
             onTabChange={(key) => {
               setLoading(true);
               setActiveTimeFilter(key as typeof TIME_FILTERS[number]);
-              setActiveChartType(key === 'Daily' && selectedChart != 'specific_yield' ? 'line' : 'bar');
+              if (selectedChart === 'string_current') {
+                setActiveChartType('line');
+              } else {
+                setActiveChartType(key === 'Daily' && selectedChart != 'specific_yield' ? 'line' : 'bar');
+              }
               setFromDate(null);
               setToDate(null);
             }}
             style={styles.tabNavigator}
           />
-          <Text style={styles.chartTitle}>Range</Text>
+          {/* <Text style={styles.chartTitle}>Range</Text> */}
           <Calendar
             fromDate={fromDate}
             toDate={toDate}
             onFromChange={setFromDate}
             onToChange={setToDate}
           />
+          <TouchableOpacity 
+            style={[styles.applyButton, (!fromDate || !toDate) && styles.applyButtonDisabled]} 
+            onPress={handleApplyCustomRange}
+            disabled={!fromDate || !toDate}
+          >
+            <Text style={styles.applyButtonText}>Apply</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -1863,6 +1941,24 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#1F2937',
+  },
+  applyButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    alignSelf: 'center',
+  },
+  applyButtonDisabled: {
+    backgroundColor: colors.gray300,
+    opacity: 0.7,
+  },
+  applyButtonText: {
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
   },
 });
 
