@@ -410,7 +410,7 @@ const AnalyticsScreen: React.FC = () => {
   const fetchDgPvGridManagement = async (fetchId: number) => {
     const isCustomRange = fromDate !== null && toDate !== null;
     const {range, timeperiod} = isCustomRange
-      ? {range: 'custom', timeperiod: 'custom'}
+      ? activeChartType == 'line' ? {range: 'daily', timeperiod: 'custom'} : {range: 'custom', timeperiod: 'custom'}
       : activeTimeFilter == 'Daily' && activeChartType == 'bar' ? { range: 'custom', timeperiod: 'Daily' }
       : activeTimeFilter == 'Week' && activeChartType == 'bar' ? { range: 'custom', timeperiod: 'Weekly' }
       : TIME_PERIOD_MAP[activeTimeFilter];
@@ -646,14 +646,18 @@ const AnalyticsScreen: React.FC = () => {
               // Use ALL solarArr points; compute spacing to fit screenWidth; labels every 36th
               const solarTimestamps = solarArr.map((d: any) => d.timeStamp as string);
               const dgScreenW = cardInnerWidth - leftYWidth;
-              const lineSpacing = isDailyOrWeekly
+              const lineSpacing = isDailyOrWeekly || (activeTimeFilter === 'Custom' && activeChartType === 'line')
                 ? Math.max(1, (dgScreenW - 40) / Math.max(1, solarTimestamps.length - 1))
                 : chartSpacing;
+              
+              // For Custom line chart, we use the same label step logic as we do for standard chart data (approx 5 labels)
+              // For Daily/Weekly, it uses 36. Weekly has 7 points, so 36 means it shows all 7. Daily has 96 sampled points, 36 means it shows ~3 labels.
               const lineLabelStep = isDailyOrWeekly ? 36 : Math.max(1, Math.floor(solarTimestamps.length / 5));
+              
               const fmtLineLabel = (ts: string, i: number): string => {
                 if (i % lineLabelStep !== 0) return '';
                 const d = new Date(ts.replace(' ', 'T'));
-                if (activeTimeFilter === 'Week') {
+                if (activeTimeFilter === 'Week' || (activeTimeFilter === 'Custom' && activeChartType === 'line')) {
                   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}\n${String(d.getHours()).padStart(2, '0')}:00`;
                 }
                 return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -860,13 +864,13 @@ const AnalyticsScreen: React.FC = () => {
                                     onPress: () => setSelectedBarIndex(isSelected ? null : i),
                                     topLabelComponent: () => isSelected ? (
                                       <View style={styles.barTooltip} pointerEvents="none">
-                                        <Text style={styles.barTooltipValue}>Solar: {formatEnergyYAxisLabel(String(solarVal))}</Text>
+                                        <Text style={styles.barTooltipValue}>Solar: {formatEnergyYAxisLabel(String(solarVal))}kWh</Text>
                                         {hasGridData && <Text style={styles.barTooltipValue}>Grid: {formatEnergyYAxisLabel(String(gridVal))}</Text>}
                                         {hasDgData   && <Text style={styles.barTooltipValue}>DG: {formatEnergyYAxisLabel(String(dgVal))}</Text>}
                                         <View style={styles.barTooltipArrow} />
                                       </View>
                                     ) : (
-                                      <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(solarVal))}</Text>
+                                      <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(solarVal))}kWh</Text>
                                     ),
                                   };
                                 })}
