@@ -1,6 +1,9 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator} from 'react-native';
 import {ScrollView as GHScrollView} from 'react-native-gesture-handler';
+import Animated, {useSharedValue, useAnimatedStyle, useAnimatedScrollHandler} from 'react-native-reanimated';
+
+const AnimatedGHScrollView = Animated.createAnimatedComponent(GHScrollView);
 import {spacing, fontSize, fontWeight, borderRadius, colors} from '../../theme';
 import SiteDetailService from '@/api/siteDetailService';
 
@@ -26,6 +29,17 @@ const StringsTab: React.FC<{siteId: string}> = ({siteId}) => {
   const [loading, setLoading] = useState(true);
   const [columns, setColumns] = useState<{id: string; name: string}[]>([]);
   const [rows, setRows] = useState<{stringName: string; values: Record<string, number | null>}[]>([]);
+
+  const scrollX = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
+
+  const stickyLeftStyle = useAnimatedStyle(() => ({
+    transform: [{translateX: scrollX.value}],
+  }));
 
   useEffect(() => {
     if (siteId) fetchAllData();
@@ -114,13 +128,13 @@ const StringsTab: React.FC<{siteId: string}> = ({siteId}) => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <GHScrollView horizontal showsHorizontalScrollIndicator>
+      <AnimatedGHScrollView horizontal onScroll={onScroll} scrollEventThrottle={16} showsHorizontalScrollIndicator>
         <View>
           {/* Header */}
           <View style={styles.headerRow}>
-            <View style={[styles.headerCell, styles.nameCell]}>
+            <Animated.View style={[styles.headerCell, styles.nameCell, stickyLeftStyle, {backgroundColor: '#F1F5F9', zIndex: 10}]}>
               <Text style={styles.headerText}>String</Text>
-            </View>
+            </Animated.View>
             {columns.map(col => (
               <View key={col.id} style={[styles.headerCell, styles.valueCell]}>
                 <Text style={styles.headerText} numberOfLines={1}>{col.name}</Text>
@@ -129,25 +143,28 @@ const StringsTab: React.FC<{siteId: string}> = ({siteId}) => {
           </View>
 
           {/* Rows */}
-          {rows.map((row, rowIdx) => (
-            <View key={rowIdx} style={[styles.dataRow, rowIdx % 2 === 1 && styles.dataRowAlt]}>
-              <View style={[styles.dataCell, styles.nameCell]}>
-                <Text style={styles.nameText}>{row.stringName}</Text>
+          {rows.map((row, rowIdx) => {
+            const rowBg = rowIdx % 2 === 1 ? '#FAFAFA' : colors.white;
+            return (
+              <View key={rowIdx} style={[styles.dataRow, {backgroundColor: rowBg}]}>
+                <Animated.View style={[styles.dataCell, styles.nameCell, stickyLeftStyle, {backgroundColor: rowBg, zIndex: 10}]}>
+                  <Text style={styles.nameText}>{row.stringName}</Text>
+                </Animated.View>
+                {columns.map(col => {
+                  const val = row.values[col.id];
+                  return (
+                    <View
+                      key={col.id}
+                      style={[styles.dataCell, styles.valueCell, {backgroundColor: getCellBg(val)}]}>
+                      <Text style={[styles.valueText, {color: getCellTextColor(val)}]}>{fmt(val)}</Text>
+                    </View>
+                  );
+                })}
               </View>
-              {columns.map(col => {
-                const val = row.values[col.id];
-                return (
-                  <View
-                    key={col.id}
-                    style={[styles.dataCell, styles.valueCell, {backgroundColor: getCellBg(val)}]}>
-                    <Text style={[styles.valueText, {color: getCellTextColor(val)}]}>{fmt(val)}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          ))}
+            );
+          })}
         </View>
-      </GHScrollView>
+      </AnimatedGHScrollView>
     </ScrollView>
   );
 };

@@ -324,7 +324,15 @@ const OverviewTab: React.FC<{siteId: string}> = ({siteId}) => {
     return {
       value: energy,
       frontColor: isFaded ? baseColor + '30' : baseColor,
-      label: name.replace(/[^0-9]/g, '') || `${equipIdx + 1}`,
+      label: name,
+      labelComponent: () => {
+        const labelWidth = 40;
+        return (
+          <View style={{ width: labelWidth, marginTop: 25, alignItems: 'center' }}>
+            <Text style={styles.xAxisLabel} numberOfLines={1}>{name}</Text>
+          </View>
+        );
+      },
       displayName: name,
       onPress: () => setSelectedBar(isSelected ? null : {name, energy}),
       topLabelComponent: isSelected
@@ -335,7 +343,9 @@ const OverviewTab: React.FC<{siteId: string}> = ({siteId}) => {
               <View style={styles.barTooltipArrow} />
             </View>
           )
-        : () => null,
+        : () => <View>
+              <Text style={styles.barTooltipValueLabel}>{energy.toFixed(1)} kWh</Text>
+            </View>,
     };
   });
 
@@ -435,8 +445,8 @@ const OverviewTab: React.FC<{siteId: string}> = ({siteId}) => {
                   data={barChartData}
                   height={200}
                   barWidth={barWidthState}
-                  spacing={barSpacing}
-                  barBorderRadius={4}
+                  spacing={2}
+                  barBorderRadius={2}
                   yAxisThickness={0}
                   xAxisThickness={1}
                   xAxisColor="#E5E7EB"
@@ -451,7 +461,6 @@ const OverviewTab: React.FC<{siteId: string}> = ({siteId}) => {
                   xAxisLabelsHeight={48}
                   labelsDistanceFromXaxis={6}
                   isAnimated
-                  rotateLabel
                 />
               </GHScrollView>
             ) : (
@@ -489,7 +498,7 @@ const OverviewTab: React.FC<{siteId: string}> = ({siteId}) => {
             </TouchableOpacity>
           </View>
 
-          <GestureDetector gesture={linePinchGesture}>
+          {/* <GestureDetector gesture={linePinchGesture}> */}
           <View>
           <GHScrollView horizontal scrollEnabled={lineScrollEnabled} showsHorizontalScrollIndicator={false}>
             <LineChart
@@ -526,7 +535,9 @@ const OverviewTab: React.FC<{siteId: string}> = ({siteId}) => {
                 pointerLabelWidth: 190,
                 pointerLabelHeight: Math.min(parameterData.length * 22 + 36, 220),
                 activatePointersOnLongPress: false,
+                persistPointer: true,
                 autoAdjustPointerLabelPosition: true,
+                shiftPointerLabelY: -20,
                 pointerLabelComponent: (items: any[]) => {
                   const timeStr = items?.[0]?.ts ?? '';
                   return (
@@ -554,7 +565,7 @@ const OverviewTab: React.FC<{siteId: string}> = ({siteId}) => {
             />
           </GHScrollView>
           </View>
-          </GestureDetector>
+          {/* </GestureDetector> */}
 
           <View style={styles.legendGrid}>
             {parameterData.map((ds: any, idx: number) => (
@@ -588,7 +599,7 @@ const styles = StyleSheet.create({
   },
   metricTop: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
   metricTextWrapper: {flex: 1, marginRight: spacing.xs},
-  metricValue: {fontSize: fontSize.xl, fontWeight: fontWeight.semibold, color: colors.black, flexWrap: 'wrap'},
+  metricValue: {fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.black, flexWrap: 'wrap'},
   metricUnit: {fontSize: fontSize.md, fontWeight: fontWeight.regular, color: colors.mutedForeground},
   metricLabel: {fontSize: fontSize.md, color: colors.mutedForeground, marginTop: spacing.xs},
   iconCircle: {
@@ -619,7 +630,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   infoItem: {flex: 1, alignItems: 'center'},
-  infoLabel: {fontSize: fontSize.sm, color: colors.mutedForeground, marginBottom: spacing.xs},
+  infoLabel: {fontSize: fontSize.md, color: colors.mutedForeground, marginBottom: spacing.xs},
   infoValue: {fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.black},
   chartCard: {
     backgroundColor: colors.white,
@@ -628,8 +639,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   chartHeaderRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm},
-  chartTitle: {fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.black, marginBottom: spacing.sm},
-  dismissText: {fontSize: fontSize.lg, color: colors.mutedForeground, padding: spacing.xs},
+  chartTitle: {fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.black, marginBottom: spacing.sm},
+  dismissText: {fontSize: fontSize.md, color: colors.mutedForeground, padding: spacing.xs},
   tooltip: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
@@ -668,6 +679,11 @@ const styles = StyleSheet.create({
   barTooltipValue: {
     color: '#E5E7EB',
     fontSize: 9,
+  },
+  barTooltipValueLabel: {
+    color: '#282828ff',
+    fontSize: fontSize.xxs,
+    textAlign: 'center'
   },
   barTooltipArrow: {
     position: 'absolute',
@@ -744,10 +760,10 @@ const styles = StyleSheet.create({
   },
   zoomBtnText: {fontSize: 18, color: '#374151', lineHeight: 22, fontWeight: fontWeight.medium},
   axisText: {fontSize: fontSize.xs, color: colors.mutedForeground},
-  xAxisLabel: {fontSize: 8, color: colors.mutedForeground, width: 40},
+  xAxisLabel: {fontSize: 8, color: colors.mutedForeground, width: 30, textAlign: 'center'},
   noDataText: {fontSize: fontSize.sm, color: colors.mutedForeground, textAlign: 'center', paddingVertical: spacing.xl},
   legendGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
-  legendItem: {flexDirection: 'row', alignItems: 'center', width: '23%', borderWidth: 1, borderColor: colors.foreground, padding: spacing.xs, borderRadius: borderRadius.md},
+  legendItem: {flexDirection: 'row', alignItems: 'center', width: '23%', borderWidth: 1, borderColor: colors.foreground, padding: spacing.xs, borderRadius: borderRadius.sm},
   legendDot: {width: 12, height: 12, borderRadius: 6, marginRight: 4, flexShrink: 0},
   legendText: {fontSize: 10, color: colors.black, flex: 1},
 });

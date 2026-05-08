@@ -157,15 +157,15 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    padding: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  cardName: {fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.black},
+  cardName: {fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.black},
   badge: {paddingHorizontal: spacing.sm + 2, paddingVertical: 3, borderRadius: borderRadius.full},
-  badgeText: {fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.white},
+  badgeText: {fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.white},
   perfBadge: {flexDirection: 'row', alignItems: 'center', marginLeft: 'auto'},
   perfText: {fontSize: fontSize.sm, color: colors.mutedForeground, marginLeft: 4},
   metricsRow: {
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   metricCell: {
     flex: 1,
     // backgroundColor: '#F8FAFC',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
   },
