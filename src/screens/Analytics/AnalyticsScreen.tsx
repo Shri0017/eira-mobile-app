@@ -803,8 +803,8 @@ const AnalyticsScreen: React.FC = () => {
                             const chunk = isDailyOrWeekly
                               ? (dgBarScreenW - 40) / Math.max(1, nBar)
                               : (dgBarScreenW - 40) / Math.min(6, nBar);
-                            const barBarWidth   = isDailyOrWeekly ? Math.max(1, chunk * 0.7) : chartBarWidth;
-                            const barBarSpacing = isDailyOrWeekly ? Math.max(0.5, chunk * 0.3) : chartSpacing;
+                            const barBarWidth   = chartBarWidth;
+                            const barBarSpacing = chartSpacing;
                             const barDynWidth   = Math.max(
                               nBar * barBarWidth + (nBar - 1) * barBarSpacing + 40,
                               dgBarScreenW,
@@ -813,21 +813,11 @@ const AnalyticsScreen: React.FC = () => {
                             // Daily has 288 bars (5-min intervals) → label every 36th (3-hour marks)
                             // Weekly/Monthly/Yearly have few bars → label every bar
                             const barLabelStep = activeTimeFilter === 'Daily' ? 36 : 1;
-                            const barXLabels = allTimestamps.map((ts: any, i: number) => {
-                              if (i % barLabelStep !== 0) return '';
-                              
-                              if (activeTimeFilter === 'Year') return ts;
-                              if (activeTimeFilter === 'Monthly') return ts.length > 3 ? ts.substring(0, 3) : ts;
-
-                              const d = new Date(ts.replace(' ', 'T'));
-                              if (activeTimeFilter === 'Daily') {
-                                return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                              }
-                              // Fallback for custom/weekly or any unparseable strings
-                              if (isNaN(d.getTime())) {
-                                return ts.length > 3 ? ts.substring(0, 3) : ts;
-                              }
-                              return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            const barXLabels = allTimestamps.map((d: any, i: number) => {
+                              const ts = d.timeStamp ?? d.timestamp ?? d.TimeStamp ?? d;
+                              if (!ts) return '';
+                              if (activeChartType === 'line' && i % barLabelStep !== 0) return '';
+                              return String(ts);
                             });
 
                             // Conditional line overlays
@@ -858,11 +848,14 @@ const AnalyticsScreen: React.FC = () => {
                                   return {
                                     value: solarVal,
                                     frontColor: 'rgba(255,165,0,0.85)',
-                                    labelComponent: barXLabels[i] ? () => (
-                                      <View style={{ width: Math.max(44, barBarWidth + barBarSpacing), marginLeft: 0, alignItems: 'center' }}>
-                                        <Text style={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}>{barXLabels[i]}</Text>
-                                      </View>
-                                    ) : undefined,
+                                    labelComponent: barXLabels[i] ? () => {
+                                      const labelWidth = isDailyOrWeekly ? 44 : 60;
+                                      return (
+                                        <View style={{ width: labelWidth, marginLeft: -(labelWidth - barBarWidth) / 2, alignItems: 'center' }}>
+                                          <Text style={styles.xLabelWide}>{barXLabels[i]}</Text>
+                                        </View>
+                                      );
+                                    } : undefined,
                                     onPress: () => setSelectedBarIndex(isSelected ? null : i),
                                     topLabelComponent: () => isSelected ? (
                                       <View style={styles.barTooltip} pointerEvents="none">
@@ -893,7 +886,7 @@ const AnalyticsScreen: React.FC = () => {
                                 noOfSections={primary.noOfSections}
                                 maxValue={primary.maxValue}
                                 yAxisTextStyle={styles.axisText}
-                                xAxisLabelTextStyle={isDailyOrWeekly ? styles.xLabel : styles.xLabelWide}
+                                xAxisLabelTextStyle={styles.xLabelWide}
                                 xAxisTextNumberOfLines={2}
                                 xAxisLabelsHeight={35}
                                 formatYLabel={formatEnergyYAxisLabel}
