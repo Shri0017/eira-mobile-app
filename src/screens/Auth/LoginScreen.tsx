@@ -57,6 +57,14 @@ const LoginScreen: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Forgot Password',
+      'Please change password using web app. This feature is currently not available on mobile app.'
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoid}
@@ -108,8 +116,10 @@ const LoginScreen: React.FC = () => {
               />
             </TouchableOpacity>
           </View>
-          <Button title='Login' onPress={handleLogin} />
-          <Text style={styles.forgotPassword}>Forgot Password?</Text>
+          <Button title='Login' onPress={handleLogin} loading={loading} />
+          <TouchableOpacity onPress={handleForgotPassword}>
+            <Text style={styles.forgotPassword}>Forgot Password?</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

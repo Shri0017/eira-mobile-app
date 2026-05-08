@@ -1,15 +1,20 @@
 import { fontSize, fontWeight, spacing } from "../theme/spacing";
 import { lightColors } from "../theme/colors";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
 
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
+  loading?: boolean;
 }
-const Button = ({ title, onPress }: ButtonProps) => {
-  return <TouchableOpacity style={styles.button} onPress={onPress}>
-    <Text style={styles.text}>{title}</Text>
+const Button = ({ title, onPress, loading }: ButtonProps) => {
+  return <TouchableOpacity style={styles.button} onPress={onPress} disabled={loading}>
+    {loading ? (
+      <ActivityIndicator color="white" />
+    ) : (
+      <Text style={styles.text}>{title}</Text>
+    )}
   </TouchableOpacity>;
 };
 
