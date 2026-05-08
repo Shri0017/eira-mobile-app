@@ -866,13 +866,13 @@ const AnalyticsScreen: React.FC = () => {
                                     onPress: () => setSelectedBarIndex(isSelected ? null : i),
                                     topLabelComponent: () => isSelected ? (
                                       <View style={styles.barTooltip} pointerEvents="none">
-                                        <Text style={styles.barTooltipValue}>Solar: {formatEnergyYAxisLabel(String(solarVal))}kWh</Text>
+                                        <Text style={styles.barTooltipValue}>Solar: {formatEnergyYAxisLabel(String(solarVal))} kWh</Text>
                                         {hasGridData && <Text style={styles.barTooltipValue}>Grid: {formatEnergyYAxisLabel(String(gridVal))}</Text>}
                                         {hasDgData   && <Text style={styles.barTooltipValue}>DG: {formatEnergyYAxisLabel(String(dgVal))}</Text>}
                                         <View style={styles.barTooltipArrow} />
                                       </View>
                                     ) : (
-                                      <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(solarVal))}kWh</Text>
+                                      <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(solarVal))} kWh</Text>
                                     ),
                                   };
                                 })}
@@ -880,7 +880,7 @@ const AnalyticsScreen: React.FC = () => {
                                 height={300}
                                 width={barDynWidth}
                                 barWidth={barBarWidth}
-                                spacing={barBarSpacing}
+                                spacing={2}
                                 barBorderRadius={2}
                                 yAxisThickness={1}
                                 yAxisLabelWidth={leftYWidth}
@@ -1352,12 +1352,12 @@ const AnalyticsScreen: React.FC = () => {
                                 onPress: () => setSelectedBarIndex(isSelected ? null : i),
                                 topLabelComponent: () => isSelected ? (
                                   <View style={styles.barTooltip} pointerEvents="none">
-                                    <Text style={styles.barTooltipValue}>Energy: {formatEnergyYAxisLabel(String(energyVal))}</Text>
+                                    <Text style={styles.barTooltipValue}>Energy: {formatEnergyYAxisLabel(String(energyVal))} kWh</Text>
                                     <Text style={styles.barTooltipValue}>Yield: {syVal.toFixed(2)} kWh/kWp</Text>
                                     <View style={styles.barTooltipArrow} />
                                   </View>
                                 ) : (
-                                  <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(energyVal))}</Text>
+                                  <Text style={styles.barValueLabel}>{formatEnergyYAxisLabel(String(energyVal))} kWh</Text>
                                 ),
                               };
                             })}
@@ -1378,7 +1378,7 @@ const AnalyticsScreen: React.FC = () => {
                             height={300}
                             width={Math.max(raw.length * chartBarWidth + (raw.length - 1) * chartSpacing + 80, Dimensions.get('window').width - 55)}
                             barWidth={chartBarWidth}
-                            spacing={chartSpacing}
+                            spacing={2}
                             barBorderRadius={2}
                             yAxisThickness={1}
                             yAxisLabelWidth={leftYWidth}
