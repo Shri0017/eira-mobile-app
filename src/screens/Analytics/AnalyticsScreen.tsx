@@ -283,7 +283,9 @@ const AnalyticsScreen: React.FC = () => {
 
   const handleApplyCustomRange = () => {
     if (fromDate && toDate) {
-      if (activeChartType == 'line') {
+      if (selectedChart === 'string_current') {
+        setActiveChartType('line');
+      } else if (activeChartType == 'line') {
         setActiveChartType('bar');
       }
       if (activeTimeFilter !== 'Custom') {
@@ -972,6 +974,10 @@ const AnalyticsScreen: React.FC = () => {
                   return `${String(d.getHours()).padStart(2, '0')}:00`;
                 }
                 if (activeChartType === 'line' && i % Math.max(1, Math.floor(sampled.length / 6)) !== 0) return '';
+                
+                if (activeTimeFilter === 'Custom') {
+                  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}\n${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                }
                 if (activeTimeFilter === 'Month') {
                   const day = d.getDate();
                   return `${MONTHS_SHORT[d.getMonth()]} ${String(day).padStart(2, '0')}`;
@@ -999,8 +1005,15 @@ const AnalyticsScreen: React.FC = () => {
 
               const leftYWidth = 32;
               const scChartWidth = cardInnerWidth - leftYWidth;
+              const isCustomLine = activeTimeFilter === 'Custom' && activeChartType === 'line';
+              
+              // For Line Chart in Daily, Weekly, or Custom views, compute spacing to fit screenWidth nicely
+              const scSpacing = isDailyOrWeekly || isCustomLine
+                ? Math.max(1, (scChartWidth - 80) / Math.max(1, sampled.length - 1))
+                : chartSpacing;
+
               const dynWidth = activeChartType === 'line'
-                ? Math.max((sampled.length - 1) * chartSpacing + 80, scChartWidth)
+                ? Math.max((sampled.length - 1) * scSpacing + 80, scChartWidth)
                 : Math.max(sampled.length * chartBarWidth + (sampled.length - 1) * chartSpacing + 80, scChartWidth);
 
               const scStackData = sampled.map((d: any, i: number) => {
@@ -1034,7 +1047,7 @@ const AnalyticsScreen: React.FC = () => {
                             isAnimated={false}
                             height={300}
                             width={dynWidth}
-                            spacing={chartSpacing}
+                            spacing={scSpacing}
                             initialSpacing={20}
                             endSpacing={60}
                             yAxisLabelWidth={leftYWidth}
